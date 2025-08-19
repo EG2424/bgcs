@@ -3,6 +3,9 @@ setlocal EnableDelayedExpansion
 
 echo Starting BGCS Ground Control Station...
 
+REM Clean up any previous processes first
+call :CLEANUP_PROCESSES
+
 REM Activate virtual environment
 call .bgcs_env\Scripts\activate
 if errorlevel 1 (
@@ -12,24 +15,30 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Starting BGCS server...
+echo.
+echo BGCS server starting on http://localhost:8000
+echo Press Ctrl+C to stop the server
+echo.
 
-REM Start uvicorn server in foreground so Ctrl+C will work
+REM Start uvicorn in foreground - this allows Ctrl+C to work naturally
 python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
-REM This cleanup section runs when Ctrl+C is pressed or server stops
+REM When we reach here, uvicorn has been stopped (Ctrl+C or error)
 echo.
-echo Cleaning up processes...
+echo Server stopped. Cleaning up...
+call :CLEANUP_PROCESSES
+echo BGCS shutdown complete.
+pause
+exit /b 0
 
-REM Kill any remaining python processes that might be related to uvicorn
-taskkill /f /im python.exe /fi "commandline eq *uvicorn*" >nul 2>&1
-
-REM Kill any processes still using port 8000
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000" 2^>nul') do (
-    if not "%%a"=="0" (
+:CLEANUP_PROCESSES
+REM Silent cleanup of any existing processes
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":8000"') do (
+    if not "%%a"=="" if not "%%a"=="0" (
         taskkill /f /pid %%a >nul 2>&1
     )
 )
 
-echo BGCS shutdown complete.
-exit /b 0
+REM Also kill any uvicorn processes by command line
+wmic process where "commandline like '%%uvicorn%%' and commandline like '%%backend.main%%'" delete >nul 2>&1
+goto :eof
