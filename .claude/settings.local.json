@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.start.bat)",
+      "Bash(./start.bat)",
+      "Bash(curl:*)",
+      "Bash(python test:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(tasklist)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
