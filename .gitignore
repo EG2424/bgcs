@@ -1,0 +1,240 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pybuilder/
+target/
+.python-version
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Virtual Environment (custom name)
+.bgcs_env/
+bgcs_env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+.vs/
+*.code-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+.directory
+
+# Logs
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+junit.xml
+
+# FastAPI
+instance/
+.webassets-cache
+.scrapy
+
+# Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+bower_components/
+.sass-cache/
+
+# Build outputs
+*.min.js
+*.min.css
+bundle.js
+bundle.css
+dist/
+build/
+out/
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+~$*
+.~lock.*
+
+# Database (if added later)
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# Mission/Telemetry logs (keep structure but ignore data)
+mission_logs/*.jsonl
+telemetry/*.log
+replay_data/*.json
+
+# Config files with secrets (if added)
+config/secrets.yaml
+config/local.yaml
+*.key
+*.pem
+*.cert
+
+# Performance profiling
+*.prof
+*.lprof
+*.stats
+.benchmarks/
+
+# WebSocket test clients
+test_client.html
+debug_client.html
+
+# Generated files
+staticfiles/
+media/
+
+# Python type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter Notebooks (if used for analysis)
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Package files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Session data
+sessions/
+*.session
+
+# Cache
+cache/
+.cache/
+__pycache__/
+
+# Temporary entity states (for debugging)
+entity_dump.json
+state_snapshot.json
+
+# Performance reports
+performance_reports/
+benchmarks/
+
+# User-specific configuration
+user_config.json
+local_settings.py
+
+# Map data (large files)
+maps/tiles/
+maps/cache/
+*.las
+*.laz
+*.tiff
+*.geotiff
+
+# Video recordings (if screen capture added)
+recordings/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Export data
+exports/
+*.csv
+*.xlsx
+
+# Backup files
+backups/
+*.backup
+
+# Lock files
+package-lock.json
+yarn.lock
+Pipfile.lock
+
+# Keep empty directories with .gitkeep
+!**/.gitkeep
