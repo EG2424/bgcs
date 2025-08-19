@@ -9,6 +9,12 @@ class BGCSApp {
         this.canvas = null;
         this.ctx = null;
         
+        // 3D Scene components
+        this.renderer3D = null;
+        this.cameraManager = null;
+        this.uiControls = null;
+        this.entityControls = null;
+        
         // UI State
         this.selectedEntities = new Set();
         this.currentView = 'top'; // 'top' or '3d'
@@ -33,18 +39,18 @@ class BGCSApp {
     async init() {
         try {
             this.setupCanvas();
+            this.setup3DScene();
+            this.setupControls();
             this.setupUIElements();
             this.setupEventListeners();
             this.setupConsole();
             
-            // Redraw canvas after UI elements are setup to ensure grid shows
-            this.drawPlaceholderContent();
-            
             this.startUIUpdateLoop();
+            this.startRendering();
             
             this.initialized = true;
             this.log('BGCS Ground Control Station initialized', 'info');
-            this.log('Frontend shell loaded successfully', 'success');
+            this.log('3D Scene Foundation loaded successfully', 'success');
             
             return true;
         } catch (error) {
@@ -63,17 +69,196 @@ class BGCSApp {
             throw new Error('Main canvas not found');
         }
         
-        this.ctx = this.canvas.getContext('2d');
         this.resizeCanvas();
-        
-        // Basic canvas setup
+        console.log('Canvas initialized:', this.canvas.width, 'x', this.canvas.height);
+    }
+    
+    /**
+     * Setup 3D scene components
+     */
+    setup3DScene() {
+        try {
+            // Initialize camera manager
+            this.cameraManager = new BGCSCameraManager(this.canvas);
+            if (!this.cameraManager.init()) {
+                throw new Error('Failed to initialize camera manager');
+            }
+            window.bgcsCameras = this.cameraManager; // Make globally accessible
+            
+            // Initialize 3D renderer
+            this.renderer3D = new BGCS3DRenderer(this.canvas);
+            if (!this.renderer3D.init()) {
+                throw new Error('Failed to initialize 3D renderer');
+            }
+            window.bgcs3D = this.renderer3D; // Make globally accessible
+            
+            // Add some demo entities for testing
+            this.addDemoEntities();
+            
+            console.log('3D Scene setup complete');
+            this.log('3D Scene Foundation initialized', 'success');
+        } catch (error) {
+            console.error('3D Scene setup failed:', error);
+            this.log(`3D Scene setup failed: ${error.message}`, 'error');
+            
+            // Fall back to 2D canvas if 3D fails
+            this.setup2DFallback();
+        }
+    }
+    
+    /**
+     * Setup 2D fallback if 3D fails
+     */
+    setup2DFallback() {
+        // Only get 2D context if 3D failed
+        if (!this.ctx) {
+            this.ctx = this.canvas.getContext('2d');
+        }
         this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw placeholder content
         this.drawPlaceholderContent();
         
-        console.log('Canvas initialized:', this.canvas.width, 'x', this.canvas.height);
+        this.log('Using 2D canvas fallback', 'warning');
+        console.log('Using 2D canvas fallback');
+    }
+    
+    /**
+     * Setup control systems
+     */
+    setupControls() {
+        try {
+            // Initialize UI controls
+            this.uiControls = new BGCSUIControls(this.canvas, this.renderer3D, this.cameraManager);
+            if (!this.uiControls.init()) {
+                throw new Error('Failed to initialize UI controls');
+            }
+            window.bgcsUIControls = this.uiControls; // Make globally accessible
+            
+            // Initialize entity controls
+            this.entityControls = new BGCSEntityControls(this.renderer3D, this.uiControls);
+            if (!this.entityControls.init()) {
+                throw new Error('Failed to initialize entity controls');
+            }
+            window.bgcsEntityControls = this.entityControls; // Make globally accessible
+            
+            console.log('Control systems setup complete');
+            this.log('UI and Entity Controls initialized', 'success');
+        } catch (error) {
+            console.error('Control systems setup failed:', error);
+            this.log(`Control systems setup failed: ${error.message}`, 'error');
+        }
+    }
+    
+    /**
+     * Add demo entities for testing
+     */
+    addDemoEntities() {
+        if (!this.renderer3D || !this.entityControls) return;
+        
+        // Add demo entities closer to center and at ground level for better visibility
+        console.log('Adding demo entities...');
+        
+        // Create entity data models
+        const drone1Data = this.entityControls.createEntity('demo_drone_1', 'drone', { x: 0, y: 3, z: 0, yaw: 0 });
+        const target1Data = this.entityControls.createEntity('demo_target_1', 'target', { x: -5, y: 1, z: 5 });
+        const drone2Data = this.entityControls.createEntity('demo_drone_2', 'drone', { x: 5, y: 4, z: -5, yaw: 90 });
+        
+        // Add to 3D scene
+        this.renderer3D.addEntity('demo_drone_1', 'drone', { x: 0, y: 3, z: 0 });
+        this.renderer3D.addEntity('demo_target_1', 'target', { x: -5, y: 1, z: 5 });
+        this.renderer3D.addEntity('demo_drone_2', 'drone', { x: 5, y: 4, z: -5 });
+        
+        // Set different modes for demonstration
+        this.entityControls.setEntityMode('demo_drone_1', 'random_search');
+        this.entityControls.setEntityMode('demo_drone_2', 'hold_position');
+        
+        // Add some waypoints to drone 1
+        this.entityControls.addWaypoint('demo_drone_1', { x: 10, y: 5, z: 0 });
+        this.entityControls.addWaypoint('demo_drone_1', { x: 10, y: 5, z: 10 });
+        this.entityControls.addWaypoint('demo_drone_1', { x: -10, y: 5, z: 10 });
+        
+        console.log('Added demo entities with data models');
+        
+        this.log('Added 3 demo entities to scene', 'info');
+        this.log('Selection: Click to select, Shift+click for multi-select, Drag entities around', 'info');
+        this.log('Camera Controls: Left drag = orbit(3D)/pan(2D), Middle drag = pan, Wheel = zoom, Keys 1/2 = switch view', 'info');
+        this.log('Console Commands: bgcsApp.spawnMultiple("drone", 5) or bgcsApp.spawnMultiple("target", 3)', 'info');
+    }
+    
+    /**
+     * Spawn a new entity (drone or target)
+     */
+    spawnEntity(type) {
+        if (!this.renderer3D || !this.entityControls) {
+            this.log('Cannot spawn: 3D scene not initialized', 'error');
+            return;
+        }
+        
+        // Generate unique ID
+        const timestamp = Date.now();
+        const randomId = Math.floor(Math.random() * 1000);
+        const entityId = `${type}_${timestamp}_${randomId}`;
+        
+        // Generate random position
+        const position = this.getRandomSpawnPosition();
+        
+        // Create entity data model
+        const entityData = this.entityControls.createEntity(entityId, type, {
+            x: position.x,
+            y: position.y, 
+            z: position.z,
+            yaw: Math.random() * 360
+        });
+        
+        // Add to 3D scene
+        this.renderer3D.addEntity(entityId, type, position);
+        
+        // Set random initial mode
+        if (type === 'drone') {
+            const modes = ['hold_position', 'random_search', 'waypoint_mode'];
+            const randomMode = modes[Math.floor(Math.random() * modes.length)];
+            this.entityControls.setEntityMode(entityId, randomMode);
+        }
+        
+        // Log success
+        this.log(`Spawned ${type} "${entityId}" at (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`, 'success');
+        
+        console.log(`Spawned ${type}:`, entityId, 'at position:', position);
+        
+        return entityId;
+    }
+    
+    /**
+     * Generate random spawn position
+     */
+    getRandomSpawnPosition() {
+        // Spawn in a reasonable area around the origin
+        const range = 30; // -30 to +30 in X and Z
+        const minHeight = 2;
+        const maxHeight = 15;
+        
+        return {
+            x: (Math.random() - 0.5) * 2 * range,
+            y: minHeight + Math.random() * (maxHeight - minHeight),
+            z: (Math.random() - 0.5) * 2 * range
+        };
+    }
+    
+    /**
+     * Spawn multiple entities at once
+     */
+    spawnMultiple(type, count = 5) {
+        const spawnedIds = [];
+        
+        for (let i = 0; i < count; i++) {
+            const id = this.spawnEntity(type);
+            if (id) {
+                spawnedIds.push(id);
+            }
+        }
+        
+        this.log(`Spawned ${spawnedIds.length} ${type}s`, 'info');
+        return spawnedIds;
     }
     
     /**
@@ -222,17 +407,28 @@ class BGCSApp {
      * Setup control button event listeners
      */
     setupControlButtons() {
-        const buttons = [
-            'spawnDrone', 'spawnTarget', 'deleteSelected',
-            'focusSelected', 'clearAllWaypoints', 'centerView'
-        ];
+        // Spawn drone button
+        if (this.elements.spawnDrone) {
+            this.elements.spawnDrone.addEventListener('click', () => {
+                this.spawnEntity('drone');
+            });
+        }
         
-        buttons.forEach(buttonKey => {
+        // Spawn target button  
+        if (this.elements.spawnTarget) {
+            this.elements.spawnTarget.addEventListener('click', () => {
+                this.spawnEntity('target');
+            });
+        }
+        
+        // Other buttons (keep existing functionality)
+        const otherButtons = ['deleteSelected', 'focusSelected', 'clearAllWaypoints', 'centerView'];
+        otherButtons.forEach(buttonKey => {
             const button = this.elements[buttonKey];
             if (button) {
                 button.addEventListener('click', () => {
                     this.log(`${buttonKey} clicked (placeholder)`, 'info');
-                    // Placeholder - will be implemented in later chunks
+                    // Will be implemented when needed
                 });
             }
         });
@@ -347,6 +543,11 @@ class BGCSApp {
     setView(view) {
         this.currentView = view;
         
+        // Update 3D camera if available
+        if (this.cameraManager) {
+            this.cameraManager.setView(view);
+        }
+        
         // Update button states
         if (this.elements.viewTop) {
             this.elements.viewTop.classList.toggle('active', view === 'top');
@@ -356,7 +557,11 @@ class BGCSApp {
         }
         
         this.log(`Switched to ${view} view`, 'info');
-        this.drawPlaceholderContent();
+        
+        // Only draw placeholder if 3D scene is not available
+        if (!this.renderer3D) {
+            this.drawPlaceholderContent();
+        }
     }
     
     /**
@@ -369,9 +574,24 @@ class BGCSApp {
         this.canvas.width = container.clientWidth;
         this.canvas.height = container.clientHeight;
         
-        // Redraw content after resize
-        if (this.initialized) {
+        // Update 3D renderer if available
+        if (this.renderer3D) {
+            this.renderer3D.handleResize();
+        }
+        
+        // Redraw content after resize only for 2D fallback
+        if (this.initialized && !this.renderer3D) {
             this.drawPlaceholderContent();
+        }
+    }
+    
+    /**
+     * Start 3D rendering loop
+     */
+    startRendering() {
+        if (this.renderer3D) {
+            this.renderer3D.startRendering();
+            this.log('3D rendering started', 'success');
         }
     }
     
@@ -403,7 +623,7 @@ class BGCSApp {
         
         this.ctx.font = '12px Inter, sans-serif';
         this.ctx.fillText(
-            '3D rendering and entity visualization will be implemented in Chunk 5',
+            '3D Scene failed to initialize - using 2D fallback',
             this.canvas.width / 2,
             this.canvas.height / 2 + 10
         );
@@ -446,25 +666,8 @@ class BGCSApp {
      * Start UI update loop
      */
     startUIUpdateLoop() {
-        let frameCount = 0;
-        let lastTime = performance.now();
-        let fps = 0;
-        
-        const updateLoop = (currentTime) => {
-            frameCount++;
-            
-            // Update FPS counter every second
-            if (currentTime - lastTime >= 1000) {
-                fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
-                frameCount = 0;
-                lastTime = currentTime;
-                
-                if (this.elements.fpsCounter) {
-                    this.elements.fpsCounter.textContent = fps.toString();
-                }
-            }
-            
-            // Update other UI elements
+        const updateLoop = () => {
+            // Update UI elements
             this.updateUI();
             
             requestAnimationFrame(updateLoop);
@@ -478,9 +681,15 @@ class BGCSApp {
      * Update UI elements
      */
     updateUI() {
-        // Update entity counter (placeholder)
+        // Update FPS counter from 3D renderer
+        if (this.elements.fpsCounter && this.renderer3D) {
+            this.elements.fpsCounter.textContent = this.renderer3D.getFPS().toString();
+        }
+        
+        // Update entity counter 
         if (this.elements.entityCounter) {
-            this.elements.entityCounter.textContent = '0'; // Will be updated with real data
+            const entityCount = this.renderer3D ? this.renderer3D.entities.size : 0;
+            this.elements.entityCounter.textContent = entityCount.toString();
         }
         
         // Update selected counter
@@ -490,7 +699,8 @@ class BGCSApp {
         
         // Update connection status
         if (this.elements.connectionStatus) {
-            this.elements.connectionStatus.className = 'status-indicator offline'; // Placeholder
+            const status = this.renderer3D ? 'online' : 'offline';
+            this.elements.connectionStatus.className = `status-indicator ${status}`;
         }
     }
     

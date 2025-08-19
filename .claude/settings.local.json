@@ -8,7 +8,8 @@
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(tasklist)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
