@@ -51,51 +51,69 @@
     <!-- Main Content -->
     <main class="main-content">
         <!-- Left Sidebar - Entity List -->
-        <aside class="sidebar-left">
-            <div class="panel" id="entities-panel">
-                <div class="panel-header">
-                    <h3>Assets</h3>
-                    <div class="panel-controls">
-                        <button class="btn-icon" id="refresh-entities" title="Refresh">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 3V9M3 9H9M3 9L9 3L15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M21 21V15M21 15H15M21 15L15 21L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <aside class="sidebar-left" id="entities-panel">
+            <div class="sidebar-header">
+                <h3>Assets</h3>
+                <div class="sidebar-controls">
+                    <button class="btn-icon" id="refresh-entities" title="Refresh">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 3V9M3 9H9M3 9L9 3L15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M21 21V15M21 15H15M21 15L15 21L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" id="collapse-entities" title="Collapse All">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="spawn-section">
+                    <div class="spawn-buttons">
+                        <button class="btn btn-primary btn-compact" id="spawn-drone">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                             </svg>
+                            Drone
                         </button>
-                        <button class="btn-icon" id="collapse-entities" title="Collapse All">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <button class="btn btn-primary btn-compact" id="spawn-target">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="2"/>
                             </svg>
+                            Target
                         </button>
                     </div>
                 </div>
                 
-                <div class="panel-content">
-                    <div class="filter-controls">
-                        <input type="text" class="search-input" id="entity-search" placeholder="Search assets...">
-                        <div class="filter-buttons">
-                            <button class="filter-btn active" data-filter="all">All</button>
-                            <button class="filter-btn" data-filter="drone">Drones</button>
-                            <button class="filter-btn" data-filter="target">Targets</button>
-                        </div>
+                <div class="filter-controls">
+                    <input type="text" class="search-input" id="entity-search" placeholder="Search assets...">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="drone">Drones</button>
+                        <button class="filter-btn" data-filter="target">Targets</button>
                     </div>
-                    
-                    <div class="entity-list" id="entity-list">
-                        <!-- Entities will be populated dynamically -->
+                </div>
+                
+                <div class="entity-list" id="entity-list">
+                    <!-- Entities will be populated dynamically -->
+                </div>
+                
+                <div class="groups-section">
+                    <div class="section-header">
+                        <h4>Groups</h4>
+                        <button class="btn-icon btn-small" id="create-group" title="Create Group">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                     </div>
-                    
-                    <div class="groups-section">
-                        <div class="section-header">
-                            <h4>Groups</h4>
-                            <button class="btn-icon btn-small" id="create-group" title="Create Group">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="groups-list" id="groups-list">
-                            <!-- Groups will be populated dynamically -->
-                        </div>
+                    <div class="groups-list" id="groups-list">
+                        <!-- Groups will be populated dynamically -->
                     </div>
                 </div>
             </div>
@@ -160,7 +178,7 @@
                 <!-- Selection Info -->
                 <div class="selection-info" id="selection-info" style="display: none;">
                     <div class="selection-header">
-                        <h4>Selection Info</h4>
+                        <h4>Selected Assets</h4>
                         <button class="btn-icon btn-small" id="clear-selection">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -170,59 +188,79 @@
                     <div class="selection-content" id="selection-content">
                         <!-- Selection details will be populated dynamically -->
                     </div>
+                    <div class="selection-actions">
+                        <button class="btn btn-danger" id="delete-selected">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6V20C19 20.5523 18.4477 21 18 21H6C5.44772 21 5 20.5523 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Delete Selected
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Sidebar - Controls -->
-        <aside class="sidebar-right">
-            <div class="panel" id="controls-panel">
-                <div class="panel-header">
-                    <h3>Control Panel</h3>
-                </div>
-                
-                <div class="panel-content">
-                    <div class="control-section">
-                        <h4>Entity Commands</h4>
-                        <div class="command-buttons">
-                            <button class="btn btn-primary" id="spawn-drone">Spawn Drone</button>
-                            <button class="btn btn-primary" id="spawn-target">Spawn Target</button>
-                            <button class="btn btn-secondary" id="delete-selected">Delete Selected</button>
-                        </div>
-                    </div>
+        <aside class="sidebar-right" id="controls-panel">
+            <div class="sidebar-header">
+                <h3>Control Panel</h3>
+            </div>
+            
+            <div class="sidebar-content">
 
-                    <div class="control-section">
-                        <h4>Behavior Modes</h4>
-                        <div class="mode-buttons">
-                            <button class="mode-btn" data-mode="random_search">Random Search</button>
-                            <button class="mode-btn" data-mode="follow_target">Follow Target</button>
-                            <button class="mode-btn" data-mode="follow_teammate">Follow Teammate</button>
-                            <button class="mode-btn" data-mode="waypoint_mode">Waypoint Mode</button>
-                            <button class="mode-btn" data-mode="kamikaze">Kamikaze</button>
-                            <button class="mode-btn" data-mode="hold_position">Hold Position</button>
-                        </div>
-                    </div>
-
-                    <div class="control-section">
-                        <h4>Simulation</h4>
-                        <div class="simulation-controls">
-                            <button class="btn btn-success" id="start-simulation">Start</button>
-                            <button class="btn btn-warning" id="pause-simulation">Pause</button>
-                            <button class="btn btn-danger" id="stop-simulation">Stop</button>
-                        </div>
-                        
-                        <div class="speed-control">
-                            <label class="control-label">Speed</label>
-                            <input type="range" id="simulation-speed" min="0.1" max="5.0" step="0.1" value="1.0" class="range-slider">
-                            <span class="control-value" id="speed-value">1.0x</span>
-                        </div>
+                <div class="control-section">
+                    <h4>Simulation Controls</h4>
+                    <div class="speed-control">
+                        <label class="control-label">Simulation Speed</label>
+                        <input type="range" id="simulation-speed" min="0.1" max="5.0" step="0.1" value="1.0" class="range-slider">
+                        <span class="control-value" id="speed-value">1.0x</span>
                     </div>
                 </div>
+
+                <div class="control-section">
+                    <h4>Behavior Modes</h4>
+                    <div class="mode-buttons">
+                        <button class="mode-btn" data-mode="random_search">Random Search</button>
+                        <button class="mode-btn" data-mode="follow_target">Follow Target</button>
+                        <button class="mode-btn" data-mode="follow_teammate">Follow Teammate</button>
+                        <button class="mode-btn" data-mode="waypoint_mode">Waypoint Mode</button>
+                        <button class="mode-btn" data-mode="kamikaze">Kamikaze</button>
+                        <button class="mode-btn" data-mode="hold_position">Hold Position</button>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h4>Commands</h4>
+                    <div class="command-buttons">
+                        <button class="btn btn-primary" id="focus-selected">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                                <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Focus Selected
+                        </button>
+                        <button class="btn btn-secondary" id="clear-all-waypoints">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m3 3 18 18M3 21l18-18" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Clear Waypoints
+                        </button>
+                        <button class="btn btn-secondary" id="center-view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Center View
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Targets Panel -->
-            <div class="panel" id="targets-panel" style="display: none;">
-                <div class="panel-header">
+            <div class="targets-panel" id="targets-panel" style="display: none;">
+                <div class="targets-header">
                     <h3>Targets</h3>
                     <button class="btn-icon" id="close-targets" title="Close">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -231,7 +269,7 @@
                     </button>
                 </div>
                 
-                <div class="panel-content">
+                <div class="targets-content">
                     <div class="targets-list" id="targets-list">
                         <!-- Targets will be populated dynamically -->
                     </div>

@@ -36,6 +36,10 @@ class BGCSApp {
             this.setupUIElements();
             this.setupEventListeners();
             this.setupConsole();
+            
+            // Redraw canvas after UI elements are setup to ensure grid shows
+            this.drawPlaceholderContent();
+            
             this.startUIUpdateLoop();
             
             this.initialized = true;
@@ -99,11 +103,16 @@ class BGCSApp {
             entitySearch: document.getElementById('entity-search'),
             entityList: document.getElementById('entity-list'),
             groupsList: document.getElementById('groups-list'),
+            refreshEntities: document.getElementById('refresh-entities'),
+            collapseEntities: document.getElementById('collapse-entities'),
             
             // Control panel
             spawnDrone: document.getElementById('spawn-drone'),
             spawnTarget: document.getElementById('spawn-target'),
             deleteSelected: document.getElementById('delete-selected'),
+            focusSelected: document.getElementById('focus-selected'),
+            clearAllWaypoints: document.getElementById('clear-all-waypoints'),
+            centerView: document.getElementById('center-view'),
             
             // Simulation controls
             startSimulation: document.getElementById('start-simulation'),
@@ -178,6 +187,15 @@ class BGCSApp {
             this.elements.toggleConsole.addEventListener('click', () => this.toggleConsole());
         }
         
+        // Entity list controls
+        if (this.elements.refreshEntities) {
+            this.elements.refreshEntities.addEventListener('click', () => this.refreshEntityList());
+        }
+        
+        if (this.elements.collapseEntities) {
+            this.elements.collapseEntities.addEventListener('click', () => this.toggleEntityListCollapse());
+        }
+        
         // Canvas interactions (basic)
         this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
@@ -197,7 +215,7 @@ class BGCSApp {
     setupControlButtons() {
         const buttons = [
             'spawnDrone', 'spawnTarget', 'deleteSelected',
-            'startSimulation', 'pauseSimulation', 'stopSimulation'
+            'focusSelected', 'clearAllWaypoints', 'centerView'
         ];
         
         buttons.forEach(buttonKey => {
@@ -359,7 +377,8 @@ class BGCSApp {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Draw grid if enabled
-        if (this.elements.showGrid && this.elements.showGrid.checked) {
+        const showGridCheckbox = this.elements.showGrid || document.getElementById('show-grid');
+        if (showGridCheckbox && showGridCheckbox.checked) {
             this.drawGrid();
         }
         
@@ -527,19 +546,82 @@ class BGCSApp {
     toggleConsole() {
         const console = document.getElementById('console');
         if (console) {
-            const isCollapsed = console.style.height === '48px';
-            console.style.height = isCollapsed ? 'var(--console-height)' : '48px';
+            const isExpanded = console.classList.contains('expanded');
+            
+            if (isExpanded) {
+                console.classList.remove('expanded');
+            } else {
+                console.classList.add('expanded');
+            }
             
             const toggleButton = this.elements.toggleConsole;
             if (toggleButton) {
                 const svg = toggleButton.querySelector('svg path');
                 if (svg) {
-                    svg.setAttribute('d', isCollapsed ? 
-                        'M18 15L12 9L6 15' : 'M6 9L12 15L18 9');
+                    svg.setAttribute('d', isExpanded ? 
+                        'M6 9L12 15L18 9' : 'M18 15L12 9L6 15');
                 }
             }
             
-            this.log(isCollapsed ? 'Console expanded' : 'Console collapsed', 'info');
+            this.log(isExpanded ? 'Console collapsed' : 'Console expanded', 'info');
+        }
+    }
+    
+    /**
+     * Refresh entity list
+     */
+    refreshEntityList() {
+        this.log('Refreshing entity list...', 'info');
+        // Placeholder - will be implemented when WebSocket client is ready
+    }
+    
+    /**
+     * Toggle entity list collapse state
+     */
+    toggleEntityListCollapse() {
+        const collapseButton = this.elements.collapseEntities;
+        
+        // Target the entire sidebar-content instead of just entity-list
+        const sidebarContent = document.querySelector('#entities-panel .sidebar-content');
+        
+        if (!sidebarContent) {
+            this.log('Sidebar content element not found', 'error');
+            return;
+        }
+        
+        // Check if currently collapsed by checking computed style or explicit style
+        const currentDisplay = window.getComputedStyle(sidebarContent).display;
+        const isCollapsed = currentDisplay === 'none' || sidebarContent.style.display === 'none';
+        
+        
+        if (isCollapsed) {
+            // Expand
+            sidebarContent.style.display = '';
+            
+            // Update button icon to collapse state (down arrow)
+            if (collapseButton) {
+                const svg = collapseButton.querySelector('svg path');
+                if (svg) {
+                    svg.setAttribute('d', 'M6 9L12 15L18 9');
+                }
+                collapseButton.title = 'Collapse All';
+            }
+            
+            this.log('Entity panel expanded', 'success');
+        } else {
+            // Collapse
+            sidebarContent.style.display = 'none';
+            
+            // Update button icon to expand state (right arrow)
+            if (collapseButton) {
+                const svg = collapseButton.querySelector('svg path');
+                if (svg) {
+                    svg.setAttribute('d', 'M9 18L15 12L9 6');
+                }
+                collapseButton.title = 'Expand All';
+            }
+            
+            this.log('Entity panel collapsed', 'success');
         }
     }
 }
