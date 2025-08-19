@@ -158,19 +158,18 @@ class BGCSUIControls {
         
         // Handle different mouse buttons and interaction modes
         if (e.button === 0) { // Left mouse button
-            // For left mouse button, we'll determine action based on what's under the mouse
-            // For now, assume camera control and let mouse up handle entity selection
+            // Left mouse is now free for entity selection and other actions
             if (this.interactionMode === 'waypoint') {
                 // Set waypoint at clicked location
                 this.handleWaypointPlacement(e);
             }
-            // Don't start box selection immediately - let drag behavior determine action
+            // Left click will handle entity selection on mouse up if no drag occurred
         } else if (e.button === 1) { // Middle mouse button
             // Pan camera
             this.interactionMode = 'pan';
         } else if (e.button === 2) { // Right mouse button
-            // Context menu or alternative action
-            this.handleRightClick(e);
+            // Camera orbit/pan controls
+            this.interactionMode = 'camera';
         }
         
         e.preventDefault();
@@ -197,7 +196,7 @@ class BGCSUIControls {
         }
         
         // Reset interaction mode
-        if (this.interactionMode === 'pan') {
+        if (this.interactionMode === 'pan' || this.interactionMode === 'camera') {
             this.interactionMode = 'select';
         }
         
@@ -224,8 +223,8 @@ class BGCSUIControls {
                 // Middle mouse button - always pan
                 this.canvas.style.cursor = 'move';
                 this.handleCameraPan(deltaX, deltaY);
-            } else if (this.mouseButton === 0) {
-                // Left mouse button - orbit in 3D, pan in top view
+            } else if (this.mouseButton === 2) {
+                // Right mouse button - orbit in 3D, pan in top view
                 if (this.cameraManager.currentView === '3d') {
                     this.canvas.style.cursor = 'grab';
                     this.handleCameraOrbit(deltaX, deltaY);

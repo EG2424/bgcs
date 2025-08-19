@@ -86,7 +86,7 @@ class BGCSCameraManager {
 
             if (this.currentView === '3d') {
                 // 3D orbit controls
-                if (this.mouseButton === 0) { // Left mouse button - orbit
+                if (this.mouseButton === 2) { // Right mouse button - orbit
                     this.spherical.theta -= deltaX * this.mouseSensitivity;
                     this.spherical.phi += deltaY * this.mouseSensitivity;
                     
@@ -94,10 +94,21 @@ class BGCSCameraManager {
                     this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
                     
                     this.updatePerspectiveFromSpherical();
+                } else if (this.mouseButton === 1) { // Middle mouse button - pan in 3D
+                    const panSpeed = this.spherical.radius * 0.001;
+                    // Pan the camera target
+                    this.cameraTarget.x -= deltaX * panSpeed;
+                    this.cameraTarget.z -= deltaY * panSpeed;
+                    this.updatePerspectiveFromSpherical();
                 }
             } else {
                 // Top view pan controls
-                if (this.mouseButton === 0) { // Left mouse button - pan
+                if (this.mouseButton === 2) { // Right mouse button - pan
+                    const panSpeed = this.orthoSize * 0.001;
+                    this.orthoCenter.x -= deltaX * panSpeed;
+                    this.orthoCenter.z += deltaY * panSpeed;
+                    this.setOrthographicCenter(this.orthoCenter.x, this.orthoCenter.z);
+                } else if (this.mouseButton === 1) { // Middle mouse button - also pan in top view
                     const panSpeed = this.orthoSize * 0.001;
                     this.orthoCenter.x -= deltaX * panSpeed;
                     this.orthoCenter.z += deltaY * panSpeed;
