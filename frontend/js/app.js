@@ -106,6 +106,10 @@ class BGCSApp {
             refreshEntities: document.getElementById('refresh-entities'),
             collapseEntities: document.getElementById('collapse-entities'),
             
+            // Canvas controls toggle
+            canvasControlsToggle: document.getElementById('canvas-controls-toggle'),
+            canvasControlsPanel: document.getElementById('canvas-controls-panel'),
+            
             // Control panel
             spawnDrone: document.getElementById('spawn-drone'),
             spawnTarget: document.getElementById('spawn-target'),
@@ -194,6 +198,11 @@ class BGCSApp {
         
         if (this.elements.collapseEntities) {
             this.elements.collapseEntities.addEventListener('click', () => this.toggleEntityListCollapse());
+        }
+        
+        // Canvas controls toggle
+        if (this.elements.canvasControlsToggle) {
+            this.elements.canvasControlsToggle.addEventListener('click', () => this.toggleCanvasControls());
         }
         
         // Canvas interactions (basic)
@@ -622,6 +631,48 @@ class BGCSApp {
             }
             
             this.log('Entity panel collapsed', 'success');
+        }
+    }
+    
+    /**
+     * Toggle canvas controls panel visibility
+     */
+    toggleCanvasControls() {
+        const panel = this.elements.canvasControlsPanel;
+        const toggleButton = this.elements.canvasControlsToggle;
+        
+        if (!panel) return;
+        
+        const isHidden = panel.style.display === 'none' || !panel.classList.contains('expanded');
+        
+        if (isHidden) {
+            // Show panel
+            panel.style.display = 'block';
+            panel.classList.add('expanded');
+            
+            // Update button icon to close state
+            if (toggleButton) {
+                const svg = toggleButton.querySelector('svg');
+                if (svg) {
+                    svg.innerHTML = '<path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+                }
+                toggleButton.title = 'Close Options';
+            }
+        } else {
+            // Hide panel
+            panel.classList.remove('expanded');
+            setTimeout(() => {
+                panel.style.display = 'none';
+            }, 200); // Match CSS transition
+            
+            // Update button icon to options state
+            if (toggleButton) {
+                const svg = toggleButton.querySelector('svg');
+                if (svg) {
+                    svg.innerHTML = '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>';
+                }
+                toggleButton.title = 'View Options';
+            }
         }
     }
 }

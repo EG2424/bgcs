@@ -549,23 +549,156 @@ body {
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 
-/* Floating Canvas Controls - Positioned to Avoid Right Sidebar */
+/* Floating Canvas Controls - Minimalist Toggle Design */
 .canvas-controls {
     position: absolute;
     top: calc(var(--header-height) + var(--padding-xl) * 2);
     right: calc(var(--sidebar-width) + var(--padding-xl) * 2);
-    display: flex;
-    flex-direction: column;
-    gap: var(--padding-md);
-    animation: fadeInSlideUp 0.8s ease-out 0.2s both;
-    z-index: 75;
+    z-index: 200; /* Higher than sidebars */
 }
 
-.canvas-controls .control-group {
+/* Toggle Button - Small and Subtle */
+.canvas-controls-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--glass-panel-overlay);
+    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    color: var(--text-on-glass);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: fadeInSlideUp 0.8s ease-out 0.2s both;
+}
+
+.canvas-controls-toggle:hover {
+    background: var(--glass-panel-secondary);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px) scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-controls-toggle svg {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+    transition: all var(--transition-fast);
+}
+
+/* Expandable Panel - Hidden by Default */
+.canvas-controls-panel {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    min-width: 220px;
+    background: var(--glass-panel-overlay);
+    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: none;
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    transition: all var(--transition-fast);
+    z-index: 250; /* Even higher to stay above everything */
+}
+
+.canvas-controls-panel.expanded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.canvas-controls-panel .control-group {
     flex-direction: column;
     align-items: stretch;
-    min-width: 200px;
     padding: var(--padding-md);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+/* Compact Control Sections */
+.control-section-compact {
+    margin-bottom: var(--padding-md);
+}
+
+.control-section-compact:last-child {
+    margin-bottom: 0;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+}
+
+.control-row .range-slider {
+    flex: 1;
+    width: auto;
+}
+
+/* Compact Toggle Controls */
+.toggle-controls-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-xs);
+}
+
+.toggle-switch-compact {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 0;
+}
+
+.toggle-switch-compact input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider-compact {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    background: var(--bg-tertiary);
+    border-radius: 16px;
+    transition: all var(--transition-fast);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-slider-compact::before {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 12px;
+    height: 12px;
+    background: var(--text-tertiary);
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+}
+
+.toggle-switch-compact input:checked + .toggle-slider-compact {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.toggle-switch-compact input:checked + .toggle-slider-compact::before {
+    transform: translateX(12px);
+    background: white;
+}
+
+.toggle-label-compact {
+    font-size: 11px;
+    color: var(--text-on-glass);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    font-weight: 500;
 }
 
 .control-label {
