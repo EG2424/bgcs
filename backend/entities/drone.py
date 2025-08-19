@@ -35,6 +35,9 @@ class Drone(Entity):
         super().__init__(entity_id, position)
         self.entity_type = "drone"
         
+        # State manager reference (set by simulation engine)
+        self._state_manager = None
+        
         # Drone-specific properties
         self.max_speed = 25.0  # m/s (higher than base)
         self.detection_radius = 150.0  # meters (better sensors)
@@ -68,6 +71,10 @@ class Drone(Entity):
         ]
         
         self.current_mode = "random_search"  # Default mode
+    
+    def set_state_manager(self, state_manager) -> None:
+        """Set reference to state manager for entity interactions."""
+        self._state_manager = state_manager
     
     def update(self, delta_time: float) -> None:
         """Update drone state based on current behavior mode."""
@@ -120,8 +127,38 @@ class Drone(Entity):
             self.set_mode("random_search")
             return
         
-        # Note: In a full implementation, this would query the state manager
-        # for the target entity. For now, we maintain position.
+        # Find target entity
+        if self._state_manager:
+            target_entity = self._state_manager.get_entity(self.target_entity_id)
+            if target_entity and not target_entity.destroyed:
+                # Calculate position to maintain follow distance
+                direction = target_entity.position - self.position
+                distance = direction.magnitude()
+                
+                if distance > self.follow_distance + 10:
+                    # Too far, move closer
+                    self.target_position = target_entity.position
+                elif distance < self.follow_distance - 10:
+                    # Too close, move away
+                    if direction.magnitude() > 0:
+                        retreat_direction = direction.normalize() * -1
+                        self.target_position = self.position + (retreat_direction * self.follow_distance)
+                else:
+                    # Good distance, orbit around target
+                    import math
+                    orbit_angle = self.last_update_time * 0.5  # Slow orbit
+                    orbit_offset = Vector3(
+                        self.follow_distance * math.cos(orbit_angle),
+                        self.follow_distance * math.sin(orbit_angle),
+                        0
+                    )
+                    self.target_position = target_entity.position + orbit_offset
+            else:
+                # Target doesn't exist or destroyed, search for new target
+                self.target_entity_id = None
+                self.set_mode("random_search")
+                return
+        
         self._move_towards_target(delta_time)
     
     def _update_follow_teammate(self, delta_time: float) -> None:
@@ -131,8 +168,32 @@ class Drone(Entity):
             self.set_mode("random_search")
             return
         
-        # Note: In a full implementation, this would query the state manager
-        # for the teammate entity and maintain formation.
+        # Find teammate entity
+        if self._state_manager:
+            teammate = self._state_manager.get_entity(self.teammate_entity_id)
+            if teammate and not teammate.destroyed:
+                # Formation flying - stay behind and to the side
+                import math
+                formation_offset = Vector3(-20, 15, 5)  # Behind and to the right
+                
+                # Rotate offset based on teammate's heading
+                if hasattr(teammate, 'heading'):
+                    cos_h = math.cos(teammate.heading)
+                    sin_h = math.sin(teammate.heading)
+                    rotated_offset = Vector3(
+                        formation_offset.x * cos_h - formation_offset.y * sin_h,
+                        formation_offset.x * sin_h + formation_offset.y * cos_h,
+                        formation_offset.z
+                    )
+                    self.target_position = teammate.position + rotated_offset
+                else:
+                    self.target_position = teammate.position + formation_offset
+            else:
+                # Teammate doesn't exist, search for new teammate or switch mode
+                self.teammate_entity_id = None
+                self.set_mode("random_search")
+                return
+        
         self._move_towards_target(delta_time)
     
     def _update_waypoint_mode(self, delta_time: float) -> None:
@@ -156,18 +217,53 @@ class Drone(Entity):
             return
         
         if not self.target_entity_id:
-            # Hunt mode - look for targets
-            # Note: In full implementation, this would scan for enemy entities
-            self._move_towards_target(delta_time)
+            # Hunt mode - look for nearest target
+            if self._state_manager:
+                targets = self._state_manager.get_entities_by_type("target")
+                nearest_target = None
+                nearest_distance = float('inf')
+                
+                for target in targets:
+                    if target.destroyed:
+                        continue
+                    distance = self.distance_to(target)
+                    if distance < nearest_distance and distance <= self.hunting_range:
+                        nearest_target = target
+                        nearest_distance = distance
+                
+                if nearest_target:
+                    self.set_target_entity(nearest_target.id)
+                    self.target_position = nearest_target.position
+                else:
+                    # No targets in range, patrol randomly
+                    self._update_random_search(delta_time)
+                    return
         else:
             # Attack mode - engage target
-            self._move_towards_target(delta_time)
-            
-            # Check if close enough to engage
-            distance_to_target = self.position.distance_to(self.target_position)
-            if distance_to_target <= self.engagement_range:
-                # Kamikaze attack - destroy self and target
-                self.take_damage(1.0)  # Destroy self
+            if self._state_manager:
+                target_entity = self._state_manager.get_entity(self.target_entity_id)
+                if target_entity and not target_entity.destroyed:
+                    self.target_position = target_entity.position
+                    
+                    # Check if close enough to engage
+                    distance_to_target = self.distance_to(target_entity)
+                    if distance_to_target <= self.engagement_range:
+                        # Kamikaze attack - destroy both entities
+                        target_entity.take_damage(1.0)  # Destroy target
+                        self.take_damage(1.0)  # Destroy self
+                        
+                        # Log the kamikaze event
+                        if self._state_manager:
+                            self._state_manager.log_event("kamikaze_attack", self.id, {
+                                "target": self.target_entity_id,
+                                "distance": distance_to_target
+                            })
+                        return
+                else:
+                    # Target destroyed or missing, find new target
+                    self.target_entity_id = None
+        
+        self._move_towards_target(delta_time)
     
     def _update_hold_position(self, delta_time: float) -> None:
         """Hold Position: Stationary defensive posture."""

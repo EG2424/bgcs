@@ -53,6 +53,11 @@ class Target(Entity):
         self.turn_rate: float = 1.0  # radians/second (slower than drones)
         self.approach_threshold: float = 10.0  # meters
         
+        # Movement state
+        self._last_micro_movement = time.time()
+        self._patrol_waypoint_timer = 0.0
+        self._patrol_waypoint_interval = 30.0  # Change direction every 30 seconds
+        
         # Valid behavior modes (only in simulation/training)
         self.valid_modes = [
             "waypoint_mode",
@@ -87,15 +92,27 @@ class Target(Entity):
     
     def _update_waypoint_mode(self, delta_time: float) -> None:
         """Waypoint Mode: Patrol routes (simulation/training mode only)."""
-        if self._is_at_target():
-            # Get next waypoint
+        self._patrol_waypoint_timer += delta_time
+        
+        if self._is_at_target() or self._patrol_waypoint_timer >= self._patrol_waypoint_interval:
+            # Get next waypoint or generate random patrol point
             next_waypoint = self.get_next_waypoint()
             if next_waypoint:
                 self.target_position = next_waypoint
             else:
-                # No more waypoints, hold position
-                self.set_mode("hold_position")
-                return
+                # Generate random waypoint near current position
+                import random
+                import math
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(20, 100)  # 20-100m patrol range
+                
+                self.target_position = Vector3(
+                    self.position.x + distance * math.cos(angle),
+                    self.position.y + distance * math.sin(angle),
+                    0  # Ground level
+                )
+            
+            self._patrol_waypoint_timer = 0.0
         
         self._move_towards_target(delta_time)
     
@@ -104,18 +121,21 @@ class Target(Entity):
         # Stop movement
         self.velocity = Vector3(0, 0, 0)
         
-        # Optional: Small random movement for realism
-        if hasattr(self, '_last_micro_movement'):
-            if time.time() - self._last_micro_movement > 30.0:  # Every 30 seconds
-                # Small random adjustment
-                self.target_position = Vector3(
-                    self.position.x + (random.uniform(-2, 2) if 'random' in globals() else 0),
-                    self.position.y + (random.uniform(-2, 2) if 'random' in globals() else 0),
-                    self.position.z
-                )
-                self._last_micro_movement = time.time()
-        else:
-            self._last_micro_movement = time.time()
+        # Small random movement for realism every 30 seconds
+        current_time = time.time()
+        if current_time - self._last_micro_movement > 30.0:
+            import random
+            # Small random adjustment (1-3 meters)
+            self.target_position = Vector3(
+                self.position.x + random.uniform(-3, 3),
+                self.position.y + random.uniform(-3, 3),
+                self.position.z
+            )
+            self._last_micro_movement = current_time
+            
+            # Occasionally rotate (change heading)
+            if random.random() < 0.3:  # 30% chance
+                self.heading += random.uniform(-0.5, 0.5)  # Small rotation
     
     def _move_towards_target(self, delta_time: float) -> None:
         """Move towards target position with ground vehicle dynamics."""

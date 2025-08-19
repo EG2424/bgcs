@@ -13,6 +13,12 @@ import json
 import logging
 from pathlib import Path
 
+# Import BGCS components
+from .state.manager import state_manager
+from .simulation.engine import SimulationEngine
+from .entities.drone import Drone
+from .entities.target import Target
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,6 +65,43 @@ class ConnectionManager:
 # Global connection manager
 manager = ConnectionManager()
 
+# Initialize simulation engine
+simulation_engine = SimulationEngine(state_manager)
+
+# App lifespan management
+@app.on_event("startup")
+async def startup_event():
+    """Start the simulation engine on app startup."""
+    logger.info("Starting BGCS simulation engine...")
+    
+    # Set state manager references for entities
+    def setup_entity_state_manager(entity):
+        if hasattr(entity, 'set_state_manager'):
+            entity.set_state_manager(state_manager)
+    
+    # Hook into entity creation to set state manager
+    original_create_entity = state_manager.create_entity
+    def create_entity_with_manager(*args, **kwargs):
+        entity = original_create_entity(*args, **kwargs)
+        if entity:
+            setup_entity_state_manager(entity)
+        return entity
+    state_manager.create_entity = create_entity_with_manager
+    
+    # Start simulation
+    await simulation_engine.start()
+    
+    # Spawn initial test scenario
+    simulation_engine.spawn_test_scenario(num_drones=5, num_targets=3)
+    logger.info("BGCS startup complete")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop the simulation engine on app shutdown."""
+    logger.info("Stopping BGCS simulation engine...")
+    await simulation_engine.stop()
+    logger.info("BGCS shutdown complete")
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time communication."""
@@ -86,29 +129,132 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/api/status")
 async def get_status():
     """Get system status."""
+    performance_stats = simulation_engine.get_performance_stats()
+    entity_counts = state_manager.get_entity_count_by_type()
+    
     return {
         "status": "running",
         "connections": len(manager.active_connections),
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "simulation": performance_stats,
+        "entities": entity_counts,
+        "total_entities": state_manager.get_entity_count()
     }
 
 @app.get("/api/simulation/start")
 async def start_simulation():
-    """Start simulation (placeholder)."""
+    """Start simulation."""
+    success = await simulation_engine.start()
+    status = "started" if success else "already_running"
+    
     await manager.broadcast({
         "type": "simulation_status",
-        "status": "started"
+        "status": status
     })
-    return {"message": "Simulation started"}
+    return {"message": f"Simulation {status}", "success": success}
 
 @app.get("/api/simulation/stop")
 async def stop_simulation():
-    """Stop simulation (placeholder)."""
+    """Stop simulation."""
+    success = await simulation_engine.stop()
+    status = "stopped" if success else "not_running"
+    
     await manager.broadcast({
         "type": "simulation_status", 
-        "status": "stopped"
+        "status": status
     })
-    return {"message": "Simulation stopped"}
+    return {"message": f"Simulation {status}", "success": success}
+
+@app.get("/api/simulation/pause")
+async def pause_simulation():
+    """Pause simulation."""
+    simulation_engine.pause()
+    await manager.broadcast({
+        "type": "simulation_status",
+        "status": "paused"
+    })
+    return {"message": "Simulation paused"}
+
+@app.get("/api/simulation/resume")
+async def resume_simulation():
+    """Resume simulation."""
+    simulation_engine.resume()
+    await manager.broadcast({
+        "type": "simulation_status",
+        "status": "resumed"
+    })
+    return {"message": "Simulation resumed"}
+
+@app.get("/api/simulation/speed/{multiplier}")
+async def set_simulation_speed(multiplier: float):
+    """Set simulation speed multiplier."""
+    simulation_engine.set_speed_multiplier(multiplier)
+    await manager.broadcast({
+        "type": "simulation_speed",
+        "speed": multiplier
+    })
+    return {"message": f"Simulation speed set to {multiplier}x"}
+
+@app.get("/api/entities")
+async def get_entities():
+    """Get all entities."""
+    snapshot = state_manager.get_state_snapshot()
+    return {
+        "entities": snapshot["entities"],
+        "selected": snapshot["selected_entities"],
+        "count": len(snapshot["entities"])
+    }
+
+@app.post("/api/spawn/drone")
+async def spawn_drone(x: float = 0, y: float = 0, z: float = 50, mode: str = "random_search"):
+    """Spawn a new drone."""
+    from .entities.base import Vector3
+    success = simulation_engine.spawn_entity(
+        "drone", 
+        position=Vector3(x, y, z),
+        current_mode=mode
+    )
+    
+    if success:
+        await manager.broadcast({
+            "type": "entity_spawned",
+            "entity_type": "drone",
+            "position": {"x": x, "y": y, "z": z}
+        })
+        return {"message": "Drone spawned successfully"}
+    else:
+        return {"message": "Failed to spawn drone", "success": False}
+
+@app.post("/api/spawn/target")
+async def spawn_target(x: float = 0, y: float = 0, z: float = 0, role: str = "unknown"):
+    """Spawn a new target."""
+    from .entities.base import Vector3
+    success = simulation_engine.spawn_entity(
+        "target",
+        position=Vector3(x, y, z),
+        role=role
+    )
+    
+    if success:
+        await manager.broadcast({
+            "type": "entity_spawned",
+            "entity_type": "target",
+            "position": {"x": x, "y": y, "z": z}
+        })
+        return {"message": "Target spawned successfully"}
+    else:
+        return {"message": "Failed to spawn target", "success": False}
+
+@app.post("/api/test_scenario")
+async def spawn_test_scenario(drones: int = 10, targets: int = 5):
+    """Spawn test scenario."""
+    simulation_engine.spawn_test_scenario(drones, targets)
+    await manager.broadcast({
+        "type": "test_scenario_spawned",
+        "drones": drones,
+        "targets": targets
+    })
+    return {"message": f"Test scenario spawned: {drones} drones, {targets} targets"}
 
 # Serve frontend static files
 frontend_path = Path(__file__).parent.parent / "frontend"
