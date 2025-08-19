@@ -5,9 +5,18 @@ Manages entities, events, chat messages, and selected entities.
 
 import time
 import uuid
+import math
 from typing import Dict, List, Optional, Any, Type
 from collections import deque
 from dataclasses import dataclass
+
+def safe_float(value: float) -> float:
+    """Convert float to JSON-safe value, handling inf and NaN."""
+    if math.isinf(value):
+        return 1000000.0 if value > 0 else -1000000.0  # Large but finite values
+    elif math.isnan(value):
+        return 0.0
+    return value
 
 from ..entities.base import Entity, Vector3
 from ..entities.drone import Drone
@@ -24,7 +33,7 @@ class SimulationEvent:
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "timestamp": self.timestamp,
+            "timestamp": safe_float(self.timestamp),
             "event_type": self.event_type,
             "entity_id": self.entity_id,
             "data": self.data or {}
@@ -41,7 +50,7 @@ class ChatMessage:
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "timestamp": self.timestamp,
+            "timestamp": safe_float(self.timestamp),
             "sender": self.sender,
             "message": self.message,
             "message_type": self.message_type
@@ -297,10 +306,11 @@ class StateManager:
                         for entity_id, entity in self.entities.items()},
             "selected_entities": self.selected_entities.copy(),
             "simulation_running": self.simulation_running,
-            "simulation_speed": self.simulation_speed,
-            "simulation_time": self.simulation_time,
-            "fps": self.fps,
-            "stats": self.stats.copy(),
+            "simulation_speed": safe_float(self.simulation_speed),
+            "simulation_time": safe_float(self.simulation_time),
+            "fps": safe_float(self.fps),
+            "stats": {k: safe_float(v) if isinstance(v, float) else v 
+                     for k, v in self.stats.items()},
             "recent_events": [event.to_dict() for event in self.get_recent_events(20)],
             "recent_messages": [msg.to_dict() for msg in self.get_recent_messages(10)]
         }

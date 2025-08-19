@@ -7,7 +7,7 @@ Waypoint Mode, Kamikaze, and Hold Position.
 import random
 import math
 from typing import Optional, Dict, Any, List
-from .base import Entity, Vector3
+from .base import Entity, Vector3, safe_float
 
 
 class Drone(Entity):
@@ -367,13 +367,13 @@ class Drone(Entity):
         data.update({
             "target_entity_id": self.target_entity_id,
             "teammate_entity_id": self.teammate_entity_id,
-            "follow_distance": self.follow_distance,
+            "follow_distance": safe_float(self.follow_distance),
             "kamikaze_enabled": self.kamikaze_enabled,
-            "hunting_range": self.hunting_range,
-            "turn_rate": self.turn_rate,
-            "approach_threshold": self.approach_threshold,
-            "patrol_area_size": self.patrol_area_size,
-            "engagement_range": self.engagement_range,
+            "hunting_range": safe_float(self.hunting_range),
+            "turn_rate": safe_float(self.turn_rate),
+            "approach_threshold": safe_float(self.approach_threshold),
+            "patrol_area_size": safe_float(self.patrol_area_size),
+            "engagement_range": safe_float(self.engagement_range),
             "valid_modes": self.valid_modes,
             "visual_state": self.get_visual_state()
         })

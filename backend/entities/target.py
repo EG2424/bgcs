@@ -5,7 +5,7 @@ May move and can be targeted by drones. Displayed in the GUI with state-aware vi
 
 import time
 from typing import Optional, Dict, Any
-from .base import Entity, Vector3
+from .base import Entity, Vector3, safe_float
 
 
 class Target(Entity):
@@ -253,20 +253,20 @@ class Target(Entity):
         data = super().to_dict()
         data.update({
             "observed_velocity": {
-                "x": self.observed_velocity.x,
-                "y": self.observed_velocity.y, 
-                "z": self.observed_velocity.z
+                "x": safe_float(self.observed_velocity.x),
+                "y": safe_float(self.observed_velocity.y), 
+                "z": safe_float(self.observed_velocity.z)
             },
-            "last_seen_time": self.last_seen_time,
-            "confidence": self.confidence,
+            "last_seen_time": safe_float(self.last_seen_time),
+            "confidence": safe_float(self.confidence),
             "role": self.role,
             "affiliation": self.affiliation,
             "is_moving": self.is_moving,
             "is_targeted": self.is_targeted,
-            "patrol_speed": self.patrol_speed,
-            "turn_rate": self.turn_rate,
-            "approach_threshold": self.approach_threshold,
-            "detection_time": self.detection_time,
+            "patrol_speed": safe_float(self.patrol_speed),
+            "turn_rate": safe_float(self.turn_rate),
+            "approach_threshold": safe_float(self.approach_threshold),
+            "detection_time": safe_float(self.detection_time),
             "detection_count": self.detection_count,
             "visual_state": self.get_visual_state(),
             "time_since_detection": self.get_time_since_detection(),

@@ -7,6 +7,15 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import time
 import uuid
+import math
+
+def safe_float(value: float) -> float:
+    """Convert float to JSON-safe value, handling inf and NaN."""
+    if math.isinf(value):
+        return 1000000.0 if value > 0 else -1000000.0  # Large but finite values
+    elif math.isnan(value):
+        return 0.0
+    return value
 
 
 @dataclass
@@ -134,18 +143,18 @@ class Entity:
         return {
             "id": self.id,
             "entity_type": self.entity_type,
-            "position": {"x": self.position.x, "y": self.position.y, "z": self.position.z},
-            "heading": self.heading,
-            "velocity": {"x": self.velocity.x, "y": self.velocity.y, "z": self.velocity.z},
-            "max_speed": self.max_speed,
-            "detection_radius": self.detection_radius,
-            "collision_radius": self.collision_radius,
-            "health": self.health,
+            "position": {"x": safe_float(self.position.x), "y": safe_float(self.position.y), "z": safe_float(self.position.z)},
+            "heading": safe_float(self.heading),
+            "velocity": {"x": safe_float(self.velocity.x), "y": safe_float(self.velocity.y), "z": safe_float(self.velocity.z)},
+            "max_speed": safe_float(self.max_speed),
+            "detection_radius": safe_float(self.detection_radius),
+            "collision_radius": safe_float(self.collision_radius),
+            "health": safe_float(self.health),
             "detected": self.detected,
             "selected": self.selected,
             "destroyed": self.destroyed,
-            "target_position": {"x": self.target_position.x, "y": self.target_position.y, "z": self.target_position.z},
-            "waypoints": [{"x": wp.x, "y": wp.y, "z": wp.z} for wp in self.waypoints],
+            "target_position": {"x": safe_float(self.target_position.x), "y": safe_float(self.target_position.y), "z": safe_float(self.target_position.z)},
+            "waypoints": [{"x": safe_float(wp.x), "y": safe_float(wp.y), "z": safe_float(wp.z)} for wp in self.waypoints],
             "current_mode": self.current_mode,
             "created_time": self.created_time,
             "last_update_time": self.last_update_time
