@@ -252,7 +252,7 @@ body {
     font-weight: 400;
     min-width: auto;
     height: 28px; /* Slightly smaller */
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     
     /* Very subtle styling */
@@ -355,21 +355,160 @@ body {
     left: 0;
 }
 
-.sidebar-right {
-    top: 80px;
-    right: 0;
+/* Floating Control Panel */
+.floating-control-panel {
+    position: fixed;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    width: 200px;
+    background: var(--glass-panel-dark);
+    backdrop-filter: blur(var(--blur-medium));
+    -webkit-backdrop-filter: blur(var(--blur-medium));
+    border: 1px solid var(--glass-border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--padding-md);
+    z-index: 100;
+    display: none;
+    box-shadow: var(--shadow-glass-medium);
+    transition: all var(--transition-fast);
+    opacity: 0;
 }
 
+.floating-control-panel.has-selection {
+    display: block;
+    opacity: 1;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateY(-50%) translateX(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(-50%) translateX(0);
+        opacity: 1;
+    }
+}
+
+.control-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--padding-sm);
+    padding-bottom: var(--padding-xs);
+    border-bottom: 1px solid var(--glass-border-subtle);
+}
+
+.control-panel-header h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-on-glass);
+    margin: 0;
+}
+
+.control-panel-header .selected-count {
+    background: var(--accent-glass);
+    color: var(--accent-primary);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.mode-buttons-compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--padding-xs);
+}
+
+.mode-btn-compact {
+    background: var(--glass-panel-subtle);
+    border: 1px solid var(--glass-border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--padding-xs);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 48px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.mode-btn-compact:hover {
+    background: var(--glass-panel-light);
+    border-color: var(--glass-border-primary);
+    color: var(--text-secondary);
+    transform: translateY(-1px);
+}
+
+.mode-btn-compact.active {
+    background: var(--accent-glass);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.mode-btn-compact svg {
+    flex-shrink: 0;
+}
+
+.mode-btn-compact span {
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Responsive floating panel */
+@media (max-width: 1024px) {
+    .floating-control-panel {
+        right: 10px;
+        width: 180px;
+    }
+    
+    .mode-btn-compact {
+        min-height: 42px;
+        font-size: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    .floating-control-panel {
+        bottom: 20px;
+        top: auto;
+        right: 20px;
+        transform: none;
+        width: 200px;
+    }
+    
+    .floating-control-panel.has-selection {
+        animation: slideInUp 0.3s ease-out;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+}
 
 /* Enhanced Custom Scrollbar */
 .sidebar-left::-webkit-scrollbar,
-.sidebar-right::-webkit-scrollbar,
+.floating-control-panel::-webkit-scrollbar,
 .console-content::-webkit-scrollbar {
     width: 8px;
 }
 
 .sidebar-left::-webkit-scrollbar-track,
-.sidebar-right::-webkit-scrollbar-track,
+.floating-control-panel::-webkit-scrollbar-track,
 .console-content::-webkit-scrollbar-track {
     background: var(--glass-subtle);
     border-radius: 4px;
@@ -377,7 +516,7 @@ body {
 }
 
 .sidebar-left::-webkit-scrollbar-thumb,
-.sidebar-right::-webkit-scrollbar-thumb,
+.floating-control-panel::-webkit-scrollbar-thumb,
 .console-content::-webkit-scrollbar-thumb {
     background: var(--glass-border-secondary);
     border-radius: 4px;
@@ -386,7 +525,7 @@ body {
 }
 
 .sidebar-left::-webkit-scrollbar-thumb:hover,
-.sidebar-right::-webkit-scrollbar-thumb:hover,
+.floating-control-panel::-webkit-scrollbar-thumb:hover,
 .console-content::-webkit-scrollbar-thumb:hover {
     background: var(--glass-border-primary);
     box-shadow: 0 0 6px var(--accent-glass);
@@ -397,7 +536,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--padding-md) var(--padding-lg);
+    padding: var(--padding-md) var(--padding-lg) var(--padding-xs) var(--padding-lg); /* Reduce bottom padding */
     border-bottom: 1px solid var(--glass-border-subtle);
 }
 
@@ -416,7 +555,7 @@ body {
 }
 
 .sidebar-content {
-    padding: var(--padding-lg);
+    padding: 0 var(--padding-lg) var(--padding-lg) var(--padding-lg); /* No top padding */
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -443,6 +582,7 @@ body {
 .filter-controls {
     flex-shrink: 0;
     margin-bottom: var(--padding-sm); /* Reduced from padding-md for consistency */
+    margin-top: 0; /* No top margin */
 }
 
 /* Groups section should be at bottom but scrollable */
@@ -489,7 +629,7 @@ body {
 /* Group Item Styling */
 .group-item {
     padding: var(--padding-sm);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
     margin-bottom: 4px;
@@ -527,7 +667,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--border-radius-xs);
+    border-radius: var(--radius-xs);
     background: var(--glass-panel-secondary);
     color: var(--info);
 }
@@ -1159,17 +1299,14 @@ body {
     height: 24px;
 }
 
-/* Filter Controls */
-.filter-controls {
-    margin-bottom: var(--padding-md);
-}
+/* Filter Controls - removed duplicate, using the one above */
 
 .search-input {
     width: 100%;
     padding: var(--padding-sm) var(--padding-md);
     background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
     margin-bottom: var(--padding-sm);
@@ -1178,6 +1315,7 @@ body {
 .search-input:focus {
     outline: none;
     border-color: var(--accent-primary);
+    border-radius: var(--radius-sm);
     box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
 }
 
@@ -1195,7 +1333,7 @@ body {
     padding: 6px var(--padding-sm);
     background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: 11px;
     font-weight: 500;
@@ -1243,7 +1381,7 @@ body {
 
 .entity-item {
     padding: var(--padding-sm);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
     margin-bottom: 4px;
@@ -1281,7 +1419,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--border-radius-xs);
+    border-radius: var(--radius-xs);
     background: var(--glass-panel-secondary);
 }
 
@@ -1437,7 +1575,7 @@ body {
     padding: var(--padding-sm);
     background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-size: 11px;
     font-weight: 500;
@@ -1877,7 +2015,7 @@ input:focus,
 .options-toggle {
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-primary);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--radius-sm);
     padding: 8px;
     color: var(--text-secondary);
     cursor: pointer;
@@ -1901,7 +2039,7 @@ input:focus,
     min-width: 280px;
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-primary);
-    border-radius: var(--border-radius-md);
+    border-radius: var(--radius-md);
     backdrop-filter: blur(var(--blur-medium));
     padding: var(--padding-md);
     display: none;

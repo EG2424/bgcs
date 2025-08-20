@@ -115,7 +115,6 @@
                     <h3>Assets</h3>
                     <div class="counter-group">
                         <span class="counter-badge" id="entity-counter">0</span>
-                        <span class="counter-badge selected" id="selected-counter" style="display: none;">0 selected</span>
                     </div>
                 </div>
                 <div class="sidebar-controls">
@@ -177,74 +176,63 @@
             </div>
         </div>
 
-        <!-- Right Sidebar - Controls -->
-        <aside class="sidebar-right" id="controls-panel">
-            <div class="sidebar-header">
-                <h3>Control Panel</h3>
+        <!-- Floating Control Panel -->
+        <div class="floating-control-panel" id="controls-panel">
+            <div class="control-panel-header">
+                <h4>Control Selected</h4>
+                <span class="selected-count" id="floating-selected-count">0</span>
             </div>
             
-            <div class="sidebar-content">
-
-                <!-- Simulation controls removed - moved to options menu -->
-
-                <div class="control-section">
-                    <h4>Behavior Modes</h4>
-                    <div class="mode-buttons">
-                        <button class="mode-btn" data-mode="random_search">Random Search</button>
-                        <button class="mode-btn" data-mode="follow_target">Follow Target</button>
-                        <button class="mode-btn" data-mode="follow_teammate">Follow Teammate</button>
-                        <button class="mode-btn" data-mode="waypoint_mode">Waypoint Mode</button>
-                        <button class="mode-btn" data-mode="kamikaze">Kamikaze</button>
-                        <button class="mode-btn" data-mode="hold_position">Hold Position</button>
-                    </div>
-                </div>
-
-                <div class="control-section">
-                    <h4>Commands</h4>
-                    <div class="command-buttons">
-                        <button class="btn btn-primary" id="focus-selected">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
-                                <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                            Focus Selected
-                        </button>
-                        <button class="btn btn-secondary" id="clear-all-waypoints">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="m3 3 18 18M3 21l18-18" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                            Clear Waypoints
-                        </button>
-                        <button class="btn btn-secondary" id="center-view">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                            Center View
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Targets Panel -->
-            <div class="targets-panel" id="targets-panel" style="display: none;">
-                <div class="targets-header">
-                    <h3>Targets</h3>
-                    <button class="btn-icon" id="close-targets" title="Close">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <div class="control-panel-content">
+                <div class="mode-buttons-compact">
+                    <button class="mode-btn-compact" data-mode="random_search" title="Random Search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.29,7 12,12 20.71,7"/>
+                            <line x1="12" y1="22" x2="12" y2="12"/>
                         </svg>
+                        <span>Search</span>
+                    </button>
+                    <button class="mode-btn-compact" data-mode="follow_target" title="Follow Target">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="m12 1 0 6m0 6 0 6m11-7-6 0m-6 0-6 0"/>
+                        </svg>
+                        <span>Target</span>
+                    </button>
+                    <button class="mode-btn-compact" data-mode="follow_teammate" title="Follow Teammate">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="m22 21-3-3m-3-3 3 3"/>
+                        </svg>
+                        <span>Team</span>
+                    </button>
+                    <button class="mode-btn-compact" data-mode="waypoint_mode" title="Waypoint Mode">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="3,11 22,2 13,21 11,13 3,11"/>
+                        </svg>
+                        <span>Waypoint</span>
+                    </button>
+                    <button class="mode-btn-compact" data-mode="kamikaze" title="Kamikaze">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22,2 15,9"/>
+                            <path d="m9 22 6-6"/>
+                            <path d="m2 15 6-6"/>
+                            <circle cx="11" cy="11" r="2"/>
+                        </svg>
+                        <span>Strike</span>
+                    </button>
+                    <button class="mode-btn-compact" data-mode="hold_position" title="Hold Position">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="12" cy="12" r="1"/>
+                        </svg>
+                        <span>Hold</span>
                     </button>
                 </div>
-                
-                <div class="targets-content">
-                    <div class="targets-list" id="targets-list">
-                        <!-- Targets will be populated dynamically -->
-                    </div>
-                </div>
             </div>
-        </aside>
+        </div>
     </main>
 
     <!-- Console/Log Area -->

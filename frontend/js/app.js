@@ -28,6 +28,10 @@ class BGCSApp {
         this.groups = new Map(); // groupId -> groupData
         this.groupCounter = 0;
         
+        // Track last selected entity for range selection
+        this.lastSelectedEntityId = null;
+        this.lastSelectedGroupId = null;
+        
         // Console
         this.console = {
             maxEntries: 1000,
@@ -282,7 +286,6 @@ class BGCSApp {
             connectionStatus: document.getElementById('connection-status'),
             missionTitle: document.getElementById('mission-title'),
             entityCounter: document.getElementById('entity-counter'),
-            selectedCounter: document.getElementById('selected-counter'),
             
             // Options menu
             optionsToggle: document.getElementById('options-toggle'),
@@ -306,9 +309,10 @@ class BGCSApp {
             spawnDrone: document.getElementById('spawn-drone'),
             spawnTarget: document.getElementById('spawn-target'),
             deleteSelected: document.getElementById('delete-selected'),
-            focusSelected: document.getElementById('focus-selected'),
-            clearAllWaypoints: document.getElementById('clear-all-waypoints'),
-            centerView: document.getElementById('center-view'),
+            
+            // Floating control panel
+            controlsPanel: document.getElementById('controls-panel'),
+            floatingSelectedCount: document.getElementById('floating-selected-count'),
             
             // Simulation controls
             startSimulation: document.getElementById('start-simulation'),
@@ -462,23 +466,6 @@ class BGCSApp {
             });
         }
         
-        if (this.elements.focusSelected) {
-            this.elements.focusSelected.addEventListener('click', () => {
-                this.focusOnSelectedEntities();
-            });
-        }
-        
-        if (this.elements.clearAllWaypoints) {
-            this.elements.clearAllWaypoints.addEventListener('click', () => {
-                this.clearAllWaypoints();
-            });
-        }
-        
-        if (this.elements.centerView) {
-            this.elements.centerView.addEventListener('click', () => {
-                this.centerView();
-            });
-        }
         
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -491,12 +478,16 @@ class BGCSApp {
             });
         });
         
-        // Mode buttons
-        document.querySelectorAll('.mode-btn').forEach(btn => {
+        // Mode buttons (both regular and compact)
+        document.querySelectorAll('.mode-btn, .mode-btn-compact').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                const mode = e.target.dataset.mode;
+                // Find the correct button container to clear active states
+                const isCompact = btn.classList.contains('mode-btn-compact');
+                const selector = isCompact ? '.mode-btn-compact' : '.mode-btn';
+                document.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
+                
+                btn.classList.add('active');
+                const mode = btn.dataset.mode;
                 this.applyModeToSelected(mode);
                 this.log(`Applied ${mode} mode to selected entities`, 'info');
             });
@@ -733,15 +724,33 @@ class BGCSApp {
             this.elements.entityCounter.textContent = entityCount.toString();
         }
         
-        // Update selected counter
-        if (this.elements.selectedCounter) {
-            this.elements.selectedCounter.textContent = this.selectedEntities.size.toString();
-        }
+        // Get selected count for floating control panel
+        const selectedCount = this.uiControls ? this.uiControls.selectedEntities.size : 0;
+        
+        // Update floating control panel
+        this.updateFloatingControlPanel(selectedCount);
         
         // Update connection status
         if (this.elements.connectionStatus) {
             const status = this.renderer3D ? 'online' : 'offline';
             this.elements.connectionStatus.className = `status-indicator ${status}`;
+        }
+    }
+    
+    /**
+     * Update floating control panel visibility and content
+     */
+    updateFloatingControlPanel(selectedCount) {
+        if (!this.elements.controlsPanel || !this.elements.floatingSelectedCount) return;
+        
+        // Update selected count in floating panel
+        this.elements.floatingSelectedCount.textContent = selectedCount.toString();
+        
+        // Show/hide floating control panel based on selection
+        if (selectedCount > 0) {
+            this.elements.controlsPanel.classList.add('has-selection');
+        } else {
+            this.elements.controlsPanel.classList.remove('has-selection');
         }
     }
     
@@ -876,16 +885,21 @@ class BGCSApp {
             e.preventDefault();
             e.stopPropagation();
             
-            // Prevent text selection on shift+click
-            if (e.shiftKey) {
+            // Prevent text selection on ctrl+click or shift+click
+            if (e.ctrlKey || e.shiftKey) {
                 e.preventDefault();
                 window.getSelection().removeAllRanges();
             }
             
-            // Handle multi-select with shift key
-            if (e.shiftKey) {
+            // Handle different selection modes
+            if (e.ctrlKey) {
+                // Ctrl+click: Toggle selection
                 this.toggleEntitySelection(entityData.entity_id);
+            } else if (e.shiftKey) {
+                // Shift+click: Range selection
+                this.selectEntityRange(entityData.entity_id);
             } else {
+                // Regular click: Single selection
                 this.selectEntityFromList(entityData.entity_id);
             }
         });
@@ -990,6 +1004,13 @@ class BGCSApp {
             console.log('Focusing on selected...');
             this.uiControls.focusOnSelected();
             console.log('Selected entities after selection:', Array.from(this.uiControls.selectedEntities));
+            
+            // Track last selected entity for range selection
+            this.lastSelectedEntityId = entityId;
+            
+            // Update visual selection in assets and groups menus
+            this.updateAssetMenuSelection();
+            this.updateGroupMenuSelection();
         } else {
             console.error('uiControls not available!');
         }
@@ -1004,8 +1025,74 @@ class BGCSApp {
                 this.uiControls.deselectEntity(entityId);
             } else {
                 this.uiControls.selectEntity(entityId);
+                // Track last selected for range selection
+                this.lastSelectedEntityId = entityId;
             }
+            
+            // Update visual selection in assets and groups menus
+            this.updateAssetMenuSelection();
+            this.updateGroupMenuSelection();
         }
+    }
+
+    /**
+     * Select range of entities from last selected to clicked entity
+     */
+    selectEntityRange(entityId) {
+        if (!this.uiControls || !this.lastSelectedEntityId) {
+            // If no previous selection, just select this entity
+            this.selectEntityFromList(entityId);
+            return;
+        }
+
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+
+        // Get all entity items in DOM order
+        const allEntityItems = Array.from(entityList.querySelectorAll('.entity-item'));
+        
+        // Find indices of start and end entities
+        let startIndex = -1;
+        let endIndex = -1;
+        
+        allEntityItems.forEach((item, index) => {
+            const itemEntityId = item.dataset.entityId;
+            if (itemEntityId === this.lastSelectedEntityId) {
+                startIndex = index;
+            }
+            if (itemEntityId === entityId) {
+                endIndex = index;
+            }
+        });
+
+        if (startIndex === -1 || endIndex === -1) {
+            // Fallback to single selection if entities not found
+            this.selectEntityFromList(entityId);
+            return;
+        }
+
+        // Ensure startIndex is before endIndex
+        if (startIndex > endIndex) {
+            [startIndex, endIndex] = [endIndex, startIndex];
+        }
+
+        // Clear current selection
+        this.uiControls.clearSelection();
+
+        // Select range
+        for (let i = startIndex; i <= endIndex; i++) {
+            const itemEntityId = allEntityItems[i].dataset.entityId;
+            this.uiControls.selectEntity(itemEntityId);
+        }
+
+        // Update last selected to the clicked entity
+        this.lastSelectedEntityId = entityId;
+
+        // Update visual selection in assets and groups menus
+        this.updateAssetMenuSelection();
+        this.updateGroupMenuSelection();
+        
+        console.log(`Selected range from index ${startIndex} to ${endIndex}`);
     }
     
     /**
@@ -1064,64 +1151,33 @@ class BGCSApp {
             return;
         }
         
-        // Delete each selected entity
-        selectedEntities.forEach(entityId => {
-            console.log(`Deleting entity: ${entityId}`);
-            this.removeEntity(entityId);
-        });
+        // Check if the selected entities form a complete group
+        const groupToDelete = this.findGroupByEntities(selectedEntities);
         
-        console.log(`=== COMPLETED DELETING ${selectedEntities.length} ENTITIES ===`);
-        this.log(`Deleted ${selectedEntities.length} selected entities`, 'success');
+        if (groupToDelete) {
+            // If entities form a complete group, delete the group (unbind) instead of deleting entities
+            console.log(`Deleting group: ${groupToDelete} instead of entities`);
+            this.deleteGroup(groupToDelete);
+            this.uiControls.clearSelection();
+            this.log(`Disbanded group instead of deleting entities`, 'success');
+        } else {
+            // Delete individual entities
+            selectedEntities.forEach(entityId => {
+                console.log(`Deleting entity: ${entityId}`);
+                this.removeEntity(entityId);
+            });
+            
+            console.log(`=== COMPLETED DELETING ${selectedEntities.length} ENTITIES ===`);
+            this.log(`Deleted ${selectedEntities.length} selected entities`, 'success');
+        }
+        
+        // Update visual selection after deletion
+        this.updateAssetMenuSelection();
+        this.updateGroupMenuSelection();
     }
     
-    /**
-     * Focus camera on selected entities
-     */
-    focusOnSelectedEntities() {
-        if (!this.uiControls) {
-            this.log('Cannot focus: UI controls not initialized', 'error');
-            return;
-        }
-        
-        const selectedEntities = this.uiControls.getSelectedEntities();
-        
-        if (selectedEntities.length === 0) {
-            this.log('No entities selected to focus on', 'warning');
-            return;
-        }
-        
-        // Use UI controls focus functionality
-        this.uiControls.focusOnSelected();
-        this.log(`Focused camera on ${selectedEntities.length} selected entities`, 'success');
-    }
     
-    /**
-     * Clear all waypoints for all entities
-     */
-    clearAllWaypoints() {
-        if (!this.entityControls) {
-            this.log('Cannot clear waypoints: Entity controls not initialized', 'error');
-            return;
-        }
-        
-        // Use entity controls method
-        this.entityControls.clearAllWaypoints();
-        this.log('Cleared all waypoints for all entities', 'success');
-    }
     
-    /**
-     * Center camera view
-     */
-    centerView() {
-        if (!this.cameraManager) {
-            this.log('Cannot center view: Camera manager not initialized', 'error');
-            return;
-        }
-        
-        // Reset camera to center/origin
-        this.cameraManager.focusOn(new THREE.Vector3(0, 0, 0));
-        this.log('Centered camera view', 'success');
-    }
     
     /**
      * Remove entity completely
@@ -1154,6 +1210,9 @@ class BGCSApp {
             console.log(`Clearing selection for ${entityId}`);
             this.uiControls.deselectEntity(entityId);
         }
+        
+        // Clean up empty groups after entity deletion
+        this.cleanupEmptyGroups(entityId);
         
         console.log(`=== COMPLETED DELETION OF ENTITY: ${entityId} ===`);
         this.log(`Deleted entity ${entityId}`, 'info');
@@ -1264,6 +1323,100 @@ class BGCSApp {
                 const visibleItems = entityList.querySelectorAll('.entity-item[style*="block"], .entity-item:not([style*="none"])');
                 this.elements.entityCounter.textContent = visibleItems.length.toString();
             }
+        }
+    }
+
+    /**
+     * Update visual selection highlighting in assets menu
+     */
+    updateAssetMenuSelection() {
+        if (!this.elements.entityList || !this.uiControls) return;
+        
+        const selectedIds = this.uiControls.selectedEntities;
+        const allEntityItems = this.elements.entityList.querySelectorAll('.entity-item');
+        
+        allEntityItems.forEach(item => {
+            const entityId = item.dataset.entityId;
+            if (selectedIds.has(entityId)) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    /**
+     * Update visual selection highlighting in groups menu
+     */
+    updateGroupMenuSelection() {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList || !this.uiControls) return;
+        
+        const selectedIds = this.uiControls.selectedEntities;
+        const allGroupItems = groupsList.querySelectorAll('.group-item');
+        
+        allGroupItems.forEach(item => {
+            const groupId = item.dataset.groupId;
+            const groupData = this.groups.get(groupId);
+            
+            // Check if all entities in this group are selected
+            let allEntitiesSelected = false;
+            if (groupData && groupData.entities.length > 0) {
+                allEntitiesSelected = groupData.entities.every(entityId => selectedIds.has(entityId));
+            }
+            
+            if (allEntitiesSelected) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    /**
+     * Find group that exactly matches the selected entities
+     */
+    findGroupByEntities(selectedEntityIds) {
+        // Convert to Set for easy comparison
+        const selectedSet = new Set(selectedEntityIds);
+        
+        for (const [groupId, groupData] of this.groups) {
+            const groupEntitySet = new Set(groupData.entities);
+            
+            // Check if selected entities exactly match this group's entities
+            if (selectedSet.size === groupEntitySet.size && 
+                [...selectedSet].every(id => groupEntitySet.has(id))) {
+                return groupId;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Clean up empty groups after entity deletion
+     */
+    cleanupEmptyGroups(deletedEntityId) {
+        const groupsToDelete = [];
+        
+        this.groups.forEach((groupData, groupId) => {
+            // Remove the deleted entity from the group's entity list
+            groupData.entities = groupData.entities.filter(entityId => entityId !== deletedEntityId);
+            
+            // If group has no entities left, mark it for deletion
+            if (groupData.entities.length === 0) {
+                groupsToDelete.push(groupId);
+            }
+        });
+        
+        // Delete empty groups
+        groupsToDelete.forEach(groupId => {
+            console.log(`Deleting empty group: ${groupId}`);
+            this.deleteGroup(groupId);
+        });
+        
+        if (groupsToDelete.length > 0) {
+            this.log(`Cleaned up ${groupsToDelete.length} empty groups`, 'info');
         }
     }
 
@@ -1402,6 +1555,54 @@ class BGCSApp {
     }
     
     /**
+     * Remove entities from their existing groups
+     */
+    removeEntitiesFromExistingGroups(entityIds) {
+        const groupsToUpdate = new Map(); // groupId -> remaining entities
+        const groupsToDelete = new Set(); // groups that become empty
+
+        // Find and remove entities from existing groups
+        this.groups.forEach((groupData, groupId) => {
+            const remainingEntities = groupData.entities.filter(entityId => !entityIds.includes(entityId));
+            
+            if (remainingEntities.length !== groupData.entities.length) {
+                // This group had some entities removed
+                if (remainingEntities.length === 0) {
+                    // Group becomes empty - mark for deletion
+                    groupsToDelete.add(groupId);
+                } else {
+                    // Group has remaining entities - update it
+                    groupsToUpdate.set(groupId, remainingEntities);
+                }
+            }
+        });
+
+        // Update groups with remaining entities
+        groupsToUpdate.forEach((remainingEntities, groupId) => {
+            const groupData = this.groups.get(groupId);
+            if (groupData) {
+                groupData.entities = remainingEntities;
+                this.updateGroupInList(groupData); // Update the UI display
+                this.log(`Removed entities from ${groupData.name} (${remainingEntities.length} entities remaining)`, 'info');
+            }
+        });
+
+        // Delete empty groups
+        groupsToDelete.forEach(groupId => {
+            const groupData = this.groups.get(groupId);
+            if (groupData) {
+                this.log(`Deleted empty group: ${groupData.name}`, 'info');
+                this.deleteGroup(groupId);
+            }
+        });
+
+        // Update visual representation if any groups were modified
+        if (groupsToUpdate.size > 0 || groupsToDelete.size > 0) {
+            this.updateGroupMenuSelection();
+        }
+    }
+
+    /**
      * Create a new group with specified entities
      */
     createGroup(entityIds, groupName = null) {
@@ -1409,6 +1610,9 @@ class BGCSApp {
             this.log('Cannot create group: No entities provided', 'error');
             return null;
         }
+        
+        // Remove entities from their existing groups before adding to new group
+        this.removeEntitiesFromExistingGroups(entityIds);
         
         this.groupCounter++;
         const groupId = `group_${this.groupCounter}`;
@@ -1481,8 +1685,27 @@ class BGCSApp {
         
         
         // Add click to select functionality
-        groupItem.addEventListener('click', () => {
-            this.selectGroup(groupData.id);
+        groupItem.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Prevent text selection on ctrl+click or shift+click
+            if (e.ctrlKey || e.shiftKey) {
+                e.preventDefault();
+                window.getSelection().removeAllRanges();
+            }
+            
+            // Handle different selection modes
+            if (e.ctrlKey) {
+                // Ctrl+click: Toggle group selection
+                this.toggleGroupSelection(groupData.id);
+            } else if (e.shiftKey) {
+                // Shift+click: Range selection
+                this.selectGroupRange(groupData.id);
+            } else {
+                // Regular click: Single selection
+                this.selectGroup(groupData.id);
+            }
         });
         
         groupsList.appendChild(groupItem);
@@ -1524,10 +1747,122 @@ class BGCSApp {
             this.log(`No entities found for ${groupData.name}`, 'warning');
         }
         
+        // Track last selected group for range selection
+        this.lastSelectedGroupId = groupId;
+        
         // Update group item visual state
         this.updateGroupSelection(groupId, true);
     }
     
+    /**
+     * Toggle group selection (for Ctrl+click)
+     */
+    toggleGroupSelection(groupId) {
+        const groupData = this.groups.get(groupId);
+        if (!groupData || !this.uiControls) return;
+
+        // Check if all entities in this group are currently selected
+        const allEntitiesSelected = groupData.entities.every(entityId => 
+            this.uiControls.selectedEntities.has(entityId)
+        );
+
+        if (allEntitiesSelected) {
+            // Deselect all entities in the group
+            groupData.entities.forEach(entityId => {
+                if (this.renderer3D && this.renderer3D.entities.has(entityId)) {
+                    this.uiControls.deselectEntity(entityId);
+                }
+            });
+            this.log(`Deselected ${groupData.name}`, 'info');
+        } else {
+            // Select all entities in the group
+            groupData.entities.forEach(entityId => {
+                if (this.renderer3D && this.renderer3D.entities.has(entityId)) {
+                    this.uiControls.selectEntity(entityId);
+                }
+            });
+            // Track last selected group for range selection
+            this.lastSelectedGroupId = groupId;
+            this.log(`Added ${groupData.name} to selection`, 'info');
+        }
+
+        // Update visual selection
+        this.updateAssetMenuSelection();
+        this.updateGroupMenuSelection();
+    }
+
+    /**
+     * Select range of groups from last selected to clicked group
+     */
+    selectGroupRange(groupId) {
+        if (!this.uiControls || !this.lastSelectedGroupId) {
+            // If no previous selection, just select this group
+            this.selectGroup(groupId);
+            return;
+        }
+
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+
+        // Get all group items in DOM order
+        const allGroupItems = Array.from(groupsList.querySelectorAll('.group-item'));
+        
+        // Find indices of start and end groups
+        let startIndex = -1;
+        let endIndex = -1;
+        
+        allGroupItems.forEach((item, index) => {
+            const itemGroupId = item.dataset.groupId;
+            if (itemGroupId === this.lastSelectedGroupId) {
+                startIndex = index;
+            }
+            if (itemGroupId === groupId) {
+                endIndex = index;
+            }
+        });
+
+        if (startIndex === -1 || endIndex === -1) {
+            // Fallback to single selection if groups not found
+            this.selectGroup(groupId);
+            return;
+        }
+
+        // Ensure startIndex is before endIndex
+        if (startIndex > endIndex) {
+            [startIndex, endIndex] = [endIndex, startIndex];
+        }
+
+        // Clear current selection
+        this.uiControls.clearSelection();
+
+        // Select range of groups
+        let totalEntitiesSelected = 0;
+        for (let i = startIndex; i <= endIndex; i++) {
+            const itemGroupId = allGroupItems[i].dataset.groupId;
+            const groupData = this.groups.get(itemGroupId);
+            
+            if (groupData) {
+                // Select all entities in this group
+                groupData.entities.forEach(entityId => {
+                    if (this.renderer3D && this.renderer3D.entities.has(entityId)) {
+                        this.uiControls.selectEntity(entityId);
+                        totalEntitiesSelected++;
+                    }
+                });
+            }
+        }
+
+        // Update last selected to the clicked group
+        this.lastSelectedGroupId = groupId;
+
+        // Update visual selection
+        this.updateAssetMenuSelection();
+        this.updateGroupMenuSelection();
+        
+        this.log(`Selected range: ${endIndex - startIndex + 1} groups (${totalEntitiesSelected} entities)`, 'success');
+        console.log(`Selected group range from index ${startIndex} to ${endIndex}`);
+    }
+
     /**
      * Delete a group (but not the entities)
      */
@@ -1547,6 +1882,24 @@ class BGCSApp {
         this.log(`Deleted group ${groupData.name}`, 'success');
     }
     
+    /**
+     * Update group information in the Groups list UI
+     */
+    updateGroupInList(groupData) {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+
+        const groupItem = groupsList.querySelector(`[data-group-id="${groupData.id}"]`);
+        if (groupItem) {
+            // Update the group count display
+            const groupCount = groupItem.querySelector('.group-count');
+            if (groupCount) {
+                groupCount.textContent = `${groupData.entities.length} ${groupData.type}`;
+            }
+            console.log(`Updated group ${groupData.name} count to ${groupData.entities.length}`);
+        }
+    }
+
     /**
      * Remove group from Groups list UI
      */
