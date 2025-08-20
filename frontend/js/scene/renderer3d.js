@@ -251,40 +251,36 @@ class BGCS3DRenderer {
     }
     
     /**
-     * Create a drone mesh (placeholder)
+     * Create a drone mesh - small cube
      */
     createDroneMesh() {
-        // Cone geometry for drone (pointing upward) - made larger for visibility
-        const geometry = new THREE.ConeGeometry(2, 4, 8);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0x007AFF, // System blue
+        // Create a small cube for UAV (made smaller so 1.0 scale looks good)
+        const geometry = new THREE.BoxGeometry(0.75, 0.75, 0.75);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x00FF00, // Bright green
             transparent: false,
             opacity: 1.0
         });
         
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
         
         console.log('Created drone mesh with geometry:', geometry);
         return mesh;
     }
     
     /**
-     * Create a target mesh (placeholder)
+     * Create a target mesh - small cube
      */
     createTargetMesh() {
-        // Box geometry for target - made larger for visibility
-        const geometry = new THREE.BoxGeometry(3, 3, 3);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0xFF3B30, // System red
+        // Create a small cube for targets (made smaller so 1.0 scale looks good)
+        const geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xFF0000, // Bright red
             transparent: false,
             opacity: 1.0
         });
         
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
         
         console.log('Created target mesh with geometry:', geometry);
         return mesh;
@@ -293,7 +289,7 @@ class BGCS3DRenderer {
     /**
      * Add entity to the scene
      */
-    addEntity(entityId, type, position = { x: 0, y: 5, z: 0 }) {
+    addEntity(entityId, type, position = { x: 0, y: 3, z: 0 }) {
         // Remove existing entity if it exists
         this.removeEntity(entityId);
         
@@ -319,6 +315,10 @@ class BGCS3DRenderer {
             entityId: entityId,
             type: type
         };
+        
+        // Apply current entity scale if available
+        const currentScale = window.bgcsApp ? window.bgcsApp.entityScale : 1.0;
+        mesh.scale.set(currentScale, currentScale, currentScale);
         
         // Add to scene and tracking
         this.scene.add(mesh);
@@ -376,6 +376,15 @@ class BGCS3DRenderer {
      */
     getFPS() {
         return this.fps;
+    }
+    
+    /**
+     * Set scale for all entities
+     */
+    setEntityScale(scale) {
+        this.entities.forEach((mesh, entityId) => {
+            mesh.scale.set(scale, scale, scale);
+        });
     }
     
     /**

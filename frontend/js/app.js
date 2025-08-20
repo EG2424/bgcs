@@ -234,8 +234,8 @@ class BGCSApp {
     getRandomSpawnPosition() {
         // Spawn in a reasonable area around the origin
         const range = 30; // -30 to +30 in X and Z
-        const minHeight = 2;
-        const maxHeight = 15;
+        const minHeight = 2; // Reasonable height for 3D spheres
+        const maxHeight = 8; // Good altitude range for UAVs
         
         return {
             x: (Math.random() - 0.5) * 2 * range,
@@ -273,9 +273,7 @@ class BGCSApp {
             entityCounter: document.getElementById('entity-counter'),
             selectedCounter: document.getElementById('selected-counter'),
             
-            // View controls
-            viewTop: document.getElementById('view-top'),
-            view3D: document.getElementById('view-3d'),
+            // View controls removed
             
             // Canvas controls
             entityScale: document.getElementById('entity-scale'),
@@ -339,13 +337,7 @@ class BGCSApp {
         // Window resize
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        // View controls
-        if (this.elements.viewTop) {
-            this.elements.viewTop.addEventListener('click', () => this.setView('top'));
-        }
-        if (this.elements.view3D) {
-            this.elements.view3D.addEventListener('click', () => this.setView('3d'));
-        }
+        // View controls removed - using natural mouse controls instead
         
         // Scale control
         if (this.elements.entityScale) {
@@ -353,6 +345,10 @@ class BGCSApp {
                 this.entityScale = parseFloat(e.target.value);
                 if (this.elements.scaleValue) {
                     this.elements.scaleValue.textContent = `${this.entityScale.toFixed(1)}x`;
+                }
+                // Apply scale to all entities in 3D renderer
+                if (this.renderer3D) {
+                    this.renderer3D.setEntityScale(this.entityScale);
                 }
             });
         }
@@ -538,7 +534,7 @@ class BGCSApp {
     }
     
     /**
-     * Set current view mode
+     * Set current view mode (legacy - now handled by camera system)
      */
     setView(view) {
         this.currentView = view;
@@ -548,15 +544,7 @@ class BGCSApp {
             this.cameraManager.setView(view);
         }
         
-        // Update button states
-        if (this.elements.viewTop) {
-            this.elements.viewTop.classList.toggle('active', view === 'top');
-        }
-        if (this.elements.view3D) {
-            this.elements.view3D.classList.toggle('active', view === '3d');
-        }
-        
-        this.log(`Switched to ${view} view`, 'info');
+        this.log(`Camera: ${view} orientation`, 'info');
         
         // Only draw placeholder if 3D scene is not available
         if (!this.renderer3D) {

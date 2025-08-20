@@ -1,6 +1,6 @@
 /**
- * BGCS Camera Manager - Chunk 5: 3D Scene Foundation
- * Dual camera system: Perspective (3D View) and Orthographic (Top View)
+ * BGCS Unified Camera Manager 
+ * Single perspective camera system with top-down orientation capability
  */
 
 class BGCSCameraManager {
@@ -8,49 +8,42 @@ class BGCSCameraManager {
         this.canvas = canvas;
         this.aspect = canvas.clientWidth / canvas.clientHeight;
         
-        // Cameras
-        this.perspectiveCamera = null;
-        this.orthographicCamera = null;
-        this.currentCamera = null;
-        this.currentView = 'top'; // 'top' or '3d'
+        // Single camera system
+        this.camera = null;
         
         // Camera controls state
-        this.cameraPosition = { x: 0, y: 50, z: 50 };
         this.cameraTarget = { x: 0, y: 0, z: 0 };
         this.zoom = 1.0;
-        
-        // Orthographic camera parameters
-        this.orthoSize = 100; // How much of the scene is visible
-        this.orthoCenter = { x: 0, z: 0 };
         
         // Mouse interaction state
         this.isMouseDown = false;
         this.mouseButton = null;
         this.lastMousePos = { x: 0, y: 0 };
         this.mouseSensitivity = 0.005;
-        this.zoomSensitivity = 0.1;
+        this.zoomSensitivity = 0.1; // Much smoother zooming
         
-        // 3D camera spherical coordinates for orbit controls
+        // Unified camera spherical coordinates
         this.spherical = {
-            radius: 70,
-            phi: Math.PI / 4, // Vertical angle
-            theta: Math.PI / 4 // Horizontal angle
+            radius: 50,
+            phi: 0.01, // Start at top-down (nearly 0 degrees = looking down)
+            theta: 0 // Horizontal angle
         };
         
-        console.log('BGCSCameraManager initialized');
+        // Top-down reference (for Space key reset)
+        this.topDownPhi = 0.01; // Small value instead of 0 to avoid singularity
+        
+        console.log('BGCSCameraManager initialized (unified system)');
     }
     
     /**
-     * Initialize both cameras
+     * Initialize the unified camera system
      */
     init() {
         try {
-            this.createPerspectiveCamera();
-            this.createOrthographicCamera();
-            // Note: Mouse controls will be handled by UI controls system
-            this.setView('top'); // Start with top view
+            this.createCamera();
+            this.updateCameraPosition();
             
-            console.log('Camera system initialized successfully');
+            console.log('Unified camera system initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize camera system:', error);
@@ -59,181 +52,219 @@ class BGCSCameraManager {
     }
     
     /**
-     * Setup mouse event listeners for camera controls
+     * Create single perspective camera
      */
-    setupMouseControls() {
-        // Mouse down
-        this.canvas.addEventListener('mousedown', (e) => {
-            this.isMouseDown = true;
-            this.mouseButton = e.button;
-            this.lastMousePos.x = e.clientX;
-            this.lastMousePos.y = e.clientY;
-            e.preventDefault();
-        });
-
-        // Mouse up
-        this.canvas.addEventListener('mouseup', (e) => {
-            this.isMouseDown = false;
-            this.mouseButton = null;
-        });
-
-        // Mouse move
-        this.canvas.addEventListener('mousemove', (e) => {
-            if (!this.isMouseDown) return;
-
-            const deltaX = e.clientX - this.lastMousePos.x;
-            const deltaY = e.clientY - this.lastMousePos.y;
-
-            if (this.currentView === '3d') {
-                // 3D orbit controls
-                if (this.mouseButton === 2) { // Right mouse button - orbit
-                    this.spherical.theta -= deltaX * this.mouseSensitivity;
-                    this.spherical.phi += deltaY * this.mouseSensitivity;
-                    
-                    // Clamp phi to prevent camera flipping
-                    this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
-                    
-                    this.updatePerspectiveFromSpherical();
-                } else if (this.mouseButton === 1) { // Middle mouse button - pan in 3D
-                    const panSpeed = this.spherical.radius * 0.001;
-                    // Pan the camera target
-                    this.cameraTarget.x -= deltaX * panSpeed;
-                    this.cameraTarget.z -= deltaY * panSpeed;
-                    this.updatePerspectiveFromSpherical();
-                }
-            } else {
-                // Top view pan controls
-                if (this.mouseButton === 2) { // Right mouse button - pan
-                    const panSpeed = this.orthoSize * 0.001;
-                    this.orthoCenter.x -= deltaX * panSpeed;
-                    this.orthoCenter.z += deltaY * panSpeed;
-                    this.setOrthographicCenter(this.orthoCenter.x, this.orthoCenter.z);
-                } else if (this.mouseButton === 1) { // Middle mouse button - also pan in top view
-                    const panSpeed = this.orthoSize * 0.001;
-                    this.orthoCenter.x -= deltaX * panSpeed;
-                    this.orthoCenter.z += deltaY * panSpeed;
-                    this.setOrthographicCenter(this.orthoCenter.x, this.orthoCenter.z);
-                }
-            }
-
-            this.lastMousePos.x = e.clientX;
-            this.lastMousePos.y = e.clientY;
-        });
-
-        // Mouse wheel for zoom
-        this.canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            
-            if (this.currentView === '3d') {
-                // 3D zoom by changing radius
-                this.spherical.radius += e.deltaY * this.zoomSensitivity;
-                this.spherical.radius = Math.max(5, Math.min(200, this.spherical.radius));
-                this.updatePerspectiveFromSpherical();
-            } else {
-                // Orthographic zoom
-                const newZoom = this.zoom + (e.deltaY > 0 ? -0.1 : 0.1);
-                this.setOrthographicZoom(newZoom);
-            }
-        });
-
-        console.log('Mouse controls setup complete');
-    }
-
-    /**
-     * Update perspective camera position from spherical coordinates
-     */
-    updatePerspectiveFromSpherical() {
-        if (!this.perspectiveCamera) return;
-        
-        const x = this.spherical.radius * Math.sin(this.spherical.phi) * Math.cos(this.spherical.theta);
-        const y = this.spherical.radius * Math.cos(this.spherical.phi);
-        const z = this.spherical.radius * Math.sin(this.spherical.phi) * Math.sin(this.spherical.theta);
-        
-        // Position camera relative to target
-        this.perspectiveCamera.position.set(
-            this.cameraTarget.x + x, 
-            this.cameraTarget.y + y, 
-            this.cameraTarget.z + z
-        );
-        
-        this.perspectiveCamera.lookAt(this.cameraTarget.x, this.cameraTarget.y, this.cameraTarget.z);
-    }
-
-    /**
-     * Create perspective camera for 3D view
-     */
-    createPerspectiveCamera() {
-        this.perspectiveCamera = new THREE.PerspectiveCamera(
+    createCamera() {
+        this.camera = new THREE.PerspectiveCamera(
             75, // Field of view
             this.aspect, // Aspect ratio
             0.1, // Near clipping plane
             1000 // Far clipping plane
         );
         
-        // Set initial position from spherical coordinates
-        this.updatePerspectiveFromSpherical();
+        // Set initial position (top-down view)
+        this.updateCameraPosition();
         
-        console.log('Perspective camera created');
+        console.log('Unified perspective camera created');
     }
     
     /**
-     * Create orthographic camera for top view
+     * Update camera position from spherical coordinates
      */
-    createOrthographicCamera() {
-        const width = this.orthoSize * this.aspect;
-        const height = this.orthoSize;
+    updateCameraPosition() {
+        if (!this.camera) return;
         
-        this.orthographicCamera = new THREE.OrthographicCamera(
-            -width / 2, // Left
-            width / 2,  // Right
-            height / 2, // Top
-            -height / 2, // Bottom
-            0.1, // Near
-            1000 // Far
+        const x = this.spherical.radius * Math.sin(this.spherical.phi) * Math.cos(this.spherical.theta);
+        const y = this.spherical.radius * Math.cos(this.spherical.phi);
+        const z = this.spherical.radius * Math.sin(this.spherical.phi) * Math.sin(this.spherical.theta);
+        
+        // Position camera relative to target
+        this.camera.position.set(
+            this.cameraTarget.x + x, 
+            this.cameraTarget.y + y, 
+            this.cameraTarget.z + z
         );
         
-        // Position camera directly above the scene looking down
-        this.orthographicCamera.position.set(0, 50, 0);
-        this.orthographicCamera.lookAt(0, 0, 0);
+        this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y, this.cameraTarget.z);
         
-        console.log('Orthographic camera created at position:', this.orthographicCamera.position);
+        // Update UI to reflect current orientation
+        this.updateViewUI();
     }
     
     /**
-     * Switch between camera views
+     * Handle orbit/tilt action (right mouse drag)
+     */
+    handleOrbit(deltaX, deltaY) {
+        // Invert directions for natural orbiting
+        this.spherical.theta += deltaX * this.mouseSensitivity; // Drag right = orbit right
+        this.spherical.phi -= deltaY * this.mouseSensitivity;   // Drag up = tilt up
+        
+        // Clamp phi to prevent camera flipping
+        this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
+        
+        this.updateCameraPosition();
+    }
+    
+    /**
+     * Handle pan action (left mouse drag or middle mouse)
+     */
+    handlePan(deltaX, deltaY) {
+        const isTopDown = this.spherical.phi < 0.3; // Within 17 degrees of straight down
+        const panSpeed = this.spherical.radius * 0.002;
+        
+        if (isTopDown) {
+            // Top-down panning - use camera's actual right and forward vectors
+            // This ensures consistent screen-relative movement regardless of theta rotation
+            const camera = this.camera;
+            
+            // Get camera's right vector (screen X direction)
+            const right = new THREE.Vector3();
+            right.setFromMatrixColumn(camera.matrix, 0); // Camera's local X axis
+            right.y = 0; // Project to ground plane
+            right.normalize();
+            
+            // Get camera's forward vector (screen Y direction) 
+            const forward = new THREE.Vector3();
+            forward.setFromMatrixColumn(camera.matrix, 2); // Camera's local Z axis (forward)
+            forward.y = 0; // Project to ground plane  
+            forward.normalize();
+            forward.negate(); // Negate because camera looks down -Z
+            
+            // Apply movement - invert directions for natural feel
+            const rightMovement = right.clone().multiplyScalar(-deltaX * panSpeed); // Invert X
+            const forwardMovement = forward.clone().multiplyScalar(deltaY * panSpeed); // Invert Y
+            
+            // Debug logging
+            if (deltaX !== 0 || deltaY !== 0) {
+                console.log(`Top-down pan: deltaX=${deltaX}, deltaY=${deltaY}, theta=${(this.spherical.theta * 180/Math.PI).toFixed(1)}°`);
+                console.log(`Right vector:`, right.toArray().map(x => x.toFixed(2)));
+                console.log(`Forward vector:`, forward.toArray().map(x => x.toFixed(2)));
+            }
+            
+            // Apply movement to plain JS object (not Vector3)
+            this.cameraTarget.x += rightMovement.x + forwardMovement.x;
+            this.cameraTarget.y += rightMovement.y + forwardMovement.y;
+            this.cameraTarget.z += rightMovement.z + forwardMovement.z;
+        } else {
+            // 3D panning - move target based on camera's right and up vectors
+            const camera = this.camera;
+            
+            // Calculate camera's local right and up vectors
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
+            
+            const right = new THREE.Vector3();
+            const worldUp = new THREE.Vector3(0, 1, 0);
+            right.crossVectors(cameraDirection, worldUp).normalize();
+            
+            const up = new THREE.Vector3();
+            up.crossVectors(right, cameraDirection).normalize();
+            
+            // Apply pan movement - invert directions for natural feel
+            const rightMovement = right.clone().multiplyScalar(-deltaX * panSpeed); // Invert X for natural panning
+            const upMovement = up.clone().multiplyScalar(deltaY * panSpeed); // Invert Y for natural panning
+            
+            // Apply movement to plain JS object (not Vector3)
+            this.cameraTarget.x += rightMovement.x + upMovement.x;
+            this.cameraTarget.y += rightMovement.y + upMovement.y;
+            this.cameraTarget.z += rightMovement.z + upMovement.z;
+        }
+        
+        this.updateCameraPosition();
+    }
+    
+    /**
+     * Handle zoom action (mouse wheel) - direct and immediate like pan/orbit
+     */
+    handleZoom(delta) {
+        // Direct zoom change - no animation, just like pan and orbit
+        this.spherical.radius += delta * this.zoomSensitivity;
+        this.spherical.radius = Math.max(5, Math.min(200, this.spherical.radius));
+        this.updateCameraPosition();
+    }
+    
+    /**
+     * Reset to top-down orientation (Space key)
+     */
+    resetToTopDown() {
+        // Smoothly animate to top-down view
+        this.animateToOrientation(this.spherical.radius, this.topDownPhi, this.spherical.theta);
+    }
+    
+    /**
+     * Animate camera to specific orientation
+     */
+    animateToOrientation(targetRadius, targetPhi, targetTheta, duration = 500) {
+        const startTime = performance.now();
+        const startRadius = this.spherical.radius;
+        const startPhi = this.spherical.phi;
+        const startTheta = this.spherical.theta;
+        
+        const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Smooth easing
+            const eased = 1 - Math.pow(1 - progress, 3);
+            
+            this.spherical.radius = startRadius + (targetRadius - startRadius) * eased;
+            this.spherical.phi = startPhi + (targetPhi - startPhi) * eased;
+            this.spherical.theta = startTheta + (targetTheta - startTheta) * eased;
+            
+            this.updateCameraPosition();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        
+        requestAnimationFrame(animate);
+    }
+    
+    /**
+     * Get current active camera (for renderer compatibility)
+     */
+    getCurrentCamera() {
+        return this.camera;
+    }
+    
+    /**
+     * Get current view type for UI (legacy compatibility)
+     */
+    getCurrentView() {
+        // Determine if we're in "top-down" based on phi angle (close to 0 = looking down)
+        const isTopDown = this.spherical.phi < 0.3; // Within 17 degrees of straight down
+        return isTopDown ? 'top' : '3d';
+    }
+    
+    /**
+     * Set view (legacy compatibility) - now just animates to orientation
      */
     setView(viewType) {
         if (viewType === 'top') {
-            this.currentCamera = this.orthographicCamera;
-            this.currentView = 'top';
-            console.log('Switched to Top View (Orthographic)');
+            this.resetToTopDown();
         } else if (viewType === '3d') {
-            this.currentCamera = this.perspectiveCamera;
-            this.currentView = '3d';
-            console.log('Switched to 3D View (Perspective)');
-        } else {
-            console.warn(`Unknown view type: ${viewType}`);
-            return false;
+            // Animate to 3D perspective view
+            this.animateToOrientation(50, Math.PI / 4, Math.PI / 4);
         }
         
-        // Update UI to reflect current view
+        // Update UI buttons to reflect current orientation
         this.updateViewUI();
         
         return true;
     }
     
     /**
-     * Get current active camera
+     * Update UI to reflect current camera orientation
      */
-    getCurrentCamera() {
-        return this.currentCamera;
-    }
-    
-    /**
-     * Get current view type
-     */
-    getCurrentView() {
-        return this.currentView;
+    updateViewUI() {
+        // UI buttons removed - camera orientation is now controlled naturally via mouse
+        // Optional: Log camera state for debugging
+        const isTopDown = this.spherical.phi < 0.3;
+        if (window.bgcsApp && Math.random() < 0.01) { // Log occasionally to avoid spam
+            const viewName = isTopDown ? 'Top-Down Orientation' : 'Perspective Orientation';
+            window.bgcsApp.log(`Camera: ${viewName}`, 'info');
+        }
     }
     
     /**
@@ -242,232 +273,82 @@ class BGCSCameraManager {
     handleResize(width, height) {
         this.aspect = width / height;
         
-        // Update perspective camera
-        if (this.perspectiveCamera) {
-            this.perspectiveCamera.aspect = this.aspect;
-            this.perspectiveCamera.updateProjectionMatrix();
+        if (this.camera) {
+            this.camera.aspect = this.aspect;
+            this.camera.updateProjectionMatrix();
         }
         
-        // Update orthographic camera
-        if (this.orthographicCamera) {
-            const orthoWidth = this.orthoSize * this.aspect;
-            const orthoHeight = this.orthoSize;
-            
-            this.orthographicCamera.left = -orthoWidth / 2;
-            this.orthographicCamera.right = orthoWidth / 2;
-            this.orthographicCamera.top = orthoHeight / 2;
-            this.orthographicCamera.bottom = -orthoHeight / 2;
-            this.orthographicCamera.updateProjectionMatrix();
-        }
-        
-        console.log(`Cameras updated for resize: ${width}x${height}`);
-    }
-    
-    /**
-     * Set 3D camera position and target
-     */
-    setPerspectiveCamera(position, target) {
-        if (!this.perspectiveCamera) return;
-        
-        if (position) {
-            this.cameraPosition = { ...position };
-            this.perspectiveCamera.position.set(position.x, position.y, position.z);
-        }
-        
-        if (target) {
-            this.cameraTarget = { ...target };
-            this.perspectiveCamera.lookAt(target.x, target.y, target.z);
-        }
-    }
-    
-    /**
-     * Set orthographic camera zoom level
-     */
-    setOrthographicZoom(zoom) {
-        if (!this.orthographicCamera) return;
-        
-        this.zoom = Math.max(0.1, Math.min(5.0, zoom)); // Clamp between 0.1 and 5.0
-        
-        const baseSize = 100;
-        this.orthoSize = baseSize / this.zoom;
-        
-        const orthoWidth = this.orthoSize * this.aspect;
-        const orthoHeight = this.orthoSize;
-        
-        this.orthographicCamera.left = -orthoWidth / 2;
-        this.orthographicCamera.right = orthoWidth / 2;
-        this.orthographicCamera.top = orthoHeight / 2;
-        this.orthographicCamera.bottom = -orthoHeight / 2;
-        this.orthographicCamera.updateProjectionMatrix();
-        
-        console.log(`Orthographic zoom set to: ${this.zoom}x`);
-    }
-    
-    /**
-     * Move orthographic camera center point
-     */
-    setOrthographicCenter(x, z) {
-        if (!this.orthographicCamera) return;
-        
-        this.orthographicCamera.position.set(x, 100, z);
-        this.orthographicCamera.lookAt(x, 0, z);
-        
-        console.log(`Orthographic camera centered at (${x}, ${z})`);
+        console.log(`Camera updated for resize: ${width}x${height}`);
     }
     
     /**
      * Focus camera on specific position
      */
-    focusOn(position, smooth = false) {
+    focusOn(position, smooth = true) {
         if (!position) return;
         
-        if (this.currentView === '3d') {
-            // For 3D view, move camera to look at the position
-            const newCameraPos = {
-                x: position.x + 30,
-                y: position.y + 20,
-                z: position.z + 30
+        if (smooth) {
+            // Animate to new target
+            const startTarget = { ...this.cameraTarget };
+            const targetPos = { ...position };
+            const duration = 800;
+            const startTime = performance.now();
+            
+            const animate = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                
+                this.cameraTarget.x = startTarget.x + (targetPos.x - startTarget.x) * eased;
+                this.cameraTarget.y = startTarget.y + (targetPos.y - startTarget.y) * eased;
+                this.cameraTarget.z = startTarget.z + (targetPos.z - startTarget.z) * eased;
+                
+                this.updateCameraPosition();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
             };
             
-            this.setPerspectiveCamera(newCameraPos, position);
+            requestAnimationFrame(animate);
         } else {
-            // For top view, center the orthographic camera
-            this.setOrthographicCenter(position.x, position.z);
+            this.cameraTarget = { ...position };
+            this.updateCameraPosition();
         }
         
         console.log(`Camera focused on position:`, position);
     }
     
     /**
-     * Reset cameras to default positions
+     * Reset camera to default position
      */
     resetCameras() {
-        // Reset 3D camera
-        this.setPerspectiveCamera(
-            { x: 0, y: 50, z: 50 },
-            { x: 0, y: 0, z: 0 }
-        );
+        this.cameraTarget = { x: 0, y: 0, z: 0 };
+        this.spherical.radius = 50;
+        this.spherical.phi = this.topDownPhi;
+        this.spherical.theta = 0;
+        this.updateCameraPosition();
         
-        // Reset top view camera
-        this.setOrthographicCenter(0, 0);
-        this.setOrthographicZoom(1.0);
-        
-        console.log('Cameras reset to default positions');
-    }
-    
-    /**
-     * Update UI to reflect current camera view
-     */
-    updateViewUI() {
-        // Update view buttons if they exist
-        const viewTopButton = document.getElementById('view-top');
-        const view3DButton = document.getElementById('view-3d');
-        
-        if (viewTopButton && view3DButton) {
-            viewTopButton.classList.toggle('active', this.currentView === 'top');
-            view3DButton.classList.toggle('active', this.currentView === '3d');
-        }
-        
-        // Log to console/app if available
-        if (window.bgcsApp) {
-            const viewName = this.currentView === 'top' ? 'Top View' : '3D View';
-            window.bgcsApp.log(`Switched to ${viewName}`, 'info');
-        }
-    }
-    
-    /**
-     * Handle camera orbit (for 3D view)
-     */
-    handleOrbit(deltaX, deltaY) {
-        if (this.currentView !== '3d') return;
-        
-        this.spherical.theta += deltaX * this.mouseSensitivity; // Drag right = theta increases = camera goes right
-        this.spherical.phi -= deltaY * this.mouseSensitivity; // Drag up = phi decreases = camera goes higher
-        
-        // Clamp phi to prevent camera flipping
-        this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
-        
-        this.updatePerspectiveFromSpherical();
-    }
-    
-    /**
-     * Handle camera pan (for top view and 3D middle-mouse)
-     */
-    handlePan(deltaX, deltaY) {
-        if (this.currentView === 'top') {
-            // Pan orthographic camera (invert Y for natural top-down movement)
-            const panSpeed = this.orthoSize * 0.001;
-            this.orthoCenter.x -= deltaX * panSpeed;
-            this.orthoCenter.z -= deltaY * panSpeed; // Inverted for natural top-down control
-            this.setOrthographicCenter(this.orthoCenter.x, this.orthoCenter.z);
-        } else {
-            // Pan 3D camera target (for middle mouse button)
-            const panSpeed = this.spherical.radius * 0.001;
-            
-            // Calculate right and up vectors based on current camera orientation
-            const camera = this.perspectiveCamera;
-            const right = new THREE.Vector3();
-            const up = new THREE.Vector3();
-            
-            right.setFromMatrixColumn(camera.matrix, 0); // Right vector
-            up.setFromMatrixColumn(camera.matrix, 1);    // Up vector
-            
-            // Move the target point (inverted Y for natural pan control)
-            this.cameraTarget.x -= right.x * deltaX * panSpeed;
-            this.cameraTarget.z -= right.z * deltaX * panSpeed;
-            
-            this.cameraTarget.x += up.x * deltaY * panSpeed; // Inverted Y
-            this.cameraTarget.y += up.y * deltaY * panSpeed; // Inverted Y  
-            this.cameraTarget.z += up.z * deltaY * panSpeed; // Inverted Y
-            
-            // Update camera to look at new target
-            this.updatePerspectiveFromSpherical();
-        }
-    }
-    
-    /**
-     * Handle camera zoom
-     */
-    handleZoom(delta) {
-        if (this.currentView === '3d') {
-            // 3D zoom by changing radius
-            this.spherical.radius += delta * this.zoomSensitivity;
-            this.spherical.radius = Math.max(5, Math.min(200, this.spherical.radius));
-            this.updatePerspectiveFromSpherical();
-        } else {
-            // Orthographic zoom
-            const newZoom = this.zoom + (delta > 0 ? -0.1 : 0.1);
-            this.setOrthographicZoom(newZoom);
-        }
+        console.log('Camera reset to default top-down position');
     }
     
     /**
      * Get camera information for debugging
      */
     getCameraInfo() {
-        const info = {
-            currentView: this.currentView,
-            zoom: this.zoom,
-            orthoSize: this.orthoSize
+        const isTopDown = Math.abs(this.spherical.phi - this.topDownPhi) < 0.2;
+        
+        return {
+            currentView: isTopDown ? 'top' : '3d',
+            position: {
+                x: this.camera.position.x,
+                y: this.camera.position.y,
+                z: this.camera.position.z
+            },
+            target: { ...this.cameraTarget },
+            spherical: { ...this.spherical },
+            isTopDown: isTopDown
         };
-        
-        if (this.perspectiveCamera) {
-            info.perspectivePosition = {
-                x: this.perspectiveCamera.position.x,
-                y: this.perspectiveCamera.position.y,
-                z: this.perspectiveCamera.position.z
-            };
-        }
-        
-        if (this.orthographicCamera) {
-            info.orthographicPosition = {
-                x: this.orthographicCamera.position.x,
-                y: this.orthographicCamera.position.y,
-                z: this.orthographicCamera.position.z
-            };
-        }
-        
-        return info;
     }
 }
 

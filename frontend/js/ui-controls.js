@@ -224,14 +224,9 @@ class BGCSUIControls {
                 this.canvas.style.cursor = 'move';
                 this.handleCameraPan(deltaX, deltaY);
             } else if (this.mouseButton === 2) {
-                // Right mouse button - orbit in 3D, pan in top view
-                if (this.cameraManager.currentView === '3d') {
-                    this.canvas.style.cursor = 'grab';
-                    this.handleCameraOrbit(deltaX, deltaY);
-                } else {
-                    this.canvas.style.cursor = 'move';
-                    this.handleCameraPan(deltaX, deltaY);
-                }
+                // Right mouse button - always orbit (unified camera)
+                this.canvas.style.cursor = 'grab';
+                this.handleCameraOrbit(deltaX, deltaY);
             }
         } else {
             // Update hover effects
@@ -266,14 +261,7 @@ class BGCSUIControls {
         if (e.target.matches('input, textarea')) return;
         
         switch (e.code) {
-            case 'Digit1':
-                e.preventDefault();
-                this.cameraManager.setView('top');
-                break;
-            case 'Digit2':
-                e.preventDefault();
-                this.cameraManager.setView('3d');
-                break;
+            // Keys 1 and 2 removed - using natural mouse controls instead
             case 'KeyH':
                 e.preventDefault();
                 this.focusOnSelected();
@@ -286,7 +274,8 @@ class BGCSUIControls {
                 break;
             case 'Space':
                 e.preventDefault();
-                this.toggleSelectedEntityMode();
+                // Reset camera to top-down orientation
+                this.cameraManager.resetToTopDown();
                 break;
             case 'Delete':
             case 'Backspace':
@@ -656,12 +645,12 @@ class BGCSUIControls {
     }
     
     handleCameraOrbit(deltaX, deltaY) {
-        // Only for 3D view - orbit around center
+        // Unified camera orbit - works from any orientation
         this.cameraManager.handleOrbit(deltaX, deltaY);
     }
     
     handleCameraPan(deltaX, deltaY) {
-        // Pan in top view, or alternative pan in 3D (middle mouse)
+        // Unified camera pan - adapts based on orientation
         this.cameraManager.handlePan(deltaX, deltaY);
     }
     
