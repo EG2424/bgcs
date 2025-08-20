@@ -2033,45 +2033,74 @@ input:focus,
 
 .options-panel {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
-    margin-top: 8px;
-    min-width: 280px;
+    width: 240px;
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-md);
     backdrop-filter: blur(var(--blur-medium));
-    padding: var(--padding-md);
-    display: none;
+    padding: var(--padding-sm);
+    visibility: hidden;
     z-index: 1000;
+    box-shadow: var(--shadow-glass-medium);
+    transform-origin: top right;
+    transform: scale(0.95) translateY(-10px);
+    opacity: 0;
+    transition: all var(--transition-fast), visibility 0s linear var(--transition-fast);
 }
 
 .options-panel.active {
-    display: block;
+    visibility: visible;
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    transition: all var(--transition-fast), visibility 0s linear 0s;
+}
+
+/* Responsive options panel positioning */
+@media (max-width: 480px) {
+    .options-panel {
+        right: 0;
+        width: min(220px, calc(100vw - 40px));
+    }
+}
+
+@media (max-width: 768px) {
+    .options-panel {
+        width: 220px;
+    }
 }
 
 .options-content {
     display: flex;
     flex-direction: column;
-    gap: var(--padding-md);
+    gap: var(--padding-sm);
+    align-items: center;
+    text-align: center;
 }
 
 .option-section {
     display: flex;
     flex-direction: column;
-    gap: var(--padding-sm);
+    gap: var(--padding-xs);
+    align-items: center;
+    width: 100%;
 }
 
 .option-label {
     color: var(--text-primary);
     font-size: 12px;
     font-weight: 500;
+    text-align: center;
+    width: 100%;
 }
 
 .option-control {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--padding-sm);
+    width: 100%;
 }
 
 .option-value {
@@ -2079,13 +2108,16 @@ input:focus,
     font-size: 11px;
     font-weight: 500;
     min-width: 35px;
-    text-align: right;
+    text-align: left;
+    order: -1;
 }
 
 .option-toggles {
     display: flex;
     flex-direction: column;
     gap: var(--padding-xs);
+    align-items: flex-start;
+    width: 100%;
 }
 
 .option-toggle {
@@ -2132,4 +2164,5 @@ input:focus,
 .toggle-label {
     color: var(--text-secondary);
     font-size: 12px;
+    text-align: left;
 }
