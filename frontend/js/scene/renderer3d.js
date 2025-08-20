@@ -55,14 +55,34 @@ class BGCS3DRenderer {
     }
     
     /**
-     * Create Three.js scene
+     * Create Three.js scene with map-like gradient background
      */
     createScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a1a); // Match frontend dark theme
         
-        // Add fog for depth perception
-        this.scene.fog = new THREE.Fog(0x1a1a1a, 50, 500);
+        // Create gradient background (dark blue to gray like a tactical map)
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 512;
+        
+        // Create radial gradient with satellite map colors
+        const gradient = context.createRadialGradient(256, 256, 0, 256, 256, 256);
+        gradient.addColorStop(0, '#3d4a2f'); // Muted olive green center (vegetation)
+        gradient.addColorStop(0.3, '#4a3d2f'); // Brown-green (mixed terrain)
+        gradient.addColorStop(0.6, '#3d352a'); // Earth brown (soil/fields)
+        gradient.addColorStop(0.8, '#2a2621'); // Dark brown (shadows)
+        gradient.addColorStop(1, '#1f1c18'); // Very dark earth edge
+        
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 512, 512);
+        
+        // Set as scene background
+        const texture = new THREE.CanvasTexture(canvas);
+        this.scene.background = texture;
+        
+        // Add subtle fog for depth perception with matching satellite map colors
+        this.scene.fog = new THREE.Fog(0x1f1c18, 50, 500);
     }
     
     /**
@@ -141,10 +161,55 @@ class BGCS3DRenderer {
         
         this.scene.add(this.ground);
         
-        // Add grid helper for better spatial reference
-        const gridHelper = new THREE.GridHelper(1000, 100, 0x555555, 0x333333);
-        gridHelper.position.y = 0.01; // Slightly above ground to prevent z-fighting
-        this.scene.add(gridHelper);
+        // Create custom grid with consistent line thickness
+        this.createCustomGrid();
+    }
+    
+    /**
+     * Create custom grid with consistent line thickness
+     */
+    createCustomGrid() {
+        const gridSize = 1000;
+        const divisions = 100;
+        const step = gridSize / divisions;
+        
+        // Create geometry for grid lines
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        
+        // Main grid lines (every 10th line - more prominent)
+        const mainGridColor = new THREE.Color(0x555555);
+        // Sub grid lines (regular lines)
+        const subGridColor = new THREE.Color(0x333333);
+        
+        // Create vertical and horizontal lines
+        for (let i = 0; i <= divisions; i++) {
+            const pos = -gridSize / 2 + i * step;
+            
+            // Vertical lines
+            vertices.push(-gridSize / 2, 0.01, pos);
+            vertices.push(gridSize / 2, 0.01, pos);
+            
+            // Horizontal lines
+            vertices.push(pos, 0.01, -gridSize / 2);
+            vertices.push(pos, 0.01, gridSize / 2);
+        }
+        
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        
+        // Create material with consistent line width
+        const material = new THREE.LineBasicMaterial({
+            color: 0x444444,
+            opacity: 0.6,
+            transparent: true
+        });
+        
+        // Create line segments
+        const grid = new THREE.LineSegments(geometry, material);
+        this.scene.add(grid);
+        
+        // Store reference for potential updates
+        this.customGrid = grid;
     }
     
     /**

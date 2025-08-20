@@ -269,13 +269,12 @@ class BGCSApp {
             // Header elements
             connectionStatus: document.getElementById('connection-status'),
             missionTitle: document.getElementById('mission-title'),
-            fpsCounter: document.getElementById('fps-counter'),
             entityCounter: document.getElementById('entity-counter'),
             selectedCounter: document.getElementById('selected-counter'),
             
-            // View controls removed
-            
-            // Canvas controls
+            // Options menu
+            optionsToggle: document.getElementById('options-toggle'),
+            optionsPanel: document.getElementById('options-panel'),
             entityScale: document.getElementById('entity-scale'),
             scaleValue: document.getElementById('scale-value'),
             showDetectionRanges: document.getElementById('show-detection-ranges'),
@@ -289,9 +288,7 @@ class BGCSApp {
             refreshEntities: document.getElementById('refresh-entities'),
             collapseEntities: document.getElementById('collapse-entities'),
             
-            // Canvas controls toggle
-            canvasControlsToggle: document.getElementById('canvas-controls-toggle'),
-            canvasControlsPanel: document.getElementById('canvas-controls-panel'),
+            // Options menu controls replaced canvas controls
             
             // Control panel
             spawnDrone: document.getElementById('spawn-drone'),
@@ -337,7 +334,23 @@ class BGCSApp {
         // Window resize
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        // View controls removed - using natural mouse controls instead
+        // Options menu toggle
+        if (this.elements.optionsToggle) {
+            this.elements.optionsToggle.addEventListener('click', () => {
+                if (this.elements.optionsPanel) {
+                    this.elements.optionsPanel.classList.toggle('active');
+                }
+            });
+        }
+        
+        // Close options menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.header-options')) {
+                if (this.elements.optionsPanel) {
+                    this.elements.optionsPanel.classList.remove('active');
+                }
+            }
+        });
         
         // Scale control
         if (this.elements.entityScale) {
@@ -670,9 +683,7 @@ class BGCSApp {
      */
     updateUI() {
         // Update FPS counter from 3D renderer
-        if (this.elements.fpsCounter && this.renderer3D) {
-            this.elements.fpsCounter.textContent = this.renderer3D.getFPS().toString();
-        }
+        // FPS counter removed
         
         // Update entity counter 
         if (this.elements.entityCounter) {

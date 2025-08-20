@@ -815,7 +815,7 @@ body {
 
 /* Nearly Invisible Selection Info */
 .selection-info {
-    position: absolute;
+    position: fixed;
     bottom: calc(var(--console-height) + var(--padding-xl) * 2);
     left: var(--padding-xl);
     max-width: 320px;
@@ -825,9 +825,17 @@ body {
     border-radius: var(--radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.02);
     box-shadow: none;
-    animation: fadeInSlideUp 0.4s ease-out;
-    transition: all var(--transition-medium);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
     z-index: 75;
+}
+
+.selection-info.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 
@@ -1616,4 +1624,150 @@ input:focus,
 
 .hide-scrollbar::-webkit-scrollbar {
     display: none;
+}
+
+/* Counter Badge Styles */
+.header-with-counter {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+}
+
+.counter-badge {
+    background: var(--accent-primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Header Options Menu */
+.header-options {
+    position: relative;
+}
+
+.options-toggle {
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--glass-border-primary);
+    border-radius: var(--border-radius-sm);
+    padding: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    backdrop-filter: blur(var(--blur-light));
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.options-toggle:hover {
+    background: var(--glass-panel-light);
+    border-color: var(--glass-border-secondary);
+}
+
+.options-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    min-width: 280px;
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--glass-border-primary);
+    border-radius: var(--border-radius-md);
+    backdrop-filter: blur(var(--blur-medium));
+    padding: var(--padding-md);
+    display: none;
+    z-index: 1000;
+}
+
+.options-panel.active {
+    display: block;
+}
+
+.options-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-md);
+}
+
+.option-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-sm);
+}
+
+.option-label {
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.option-control {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+}
+
+.option-value {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    min-width: 35px;
+    text-align: right;
+}
+
+.option-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-xs);
+}
+
+.option-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+    cursor: pointer;
+    padding: 2px 0;
+}
+
+.option-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.option-toggle .toggle-slider {
+    width: 32px;
+    height: 18px;
+    background: var(--bg-tertiary);
+    border-radius: 9px;
+    position: relative;
+    transition: background-color var(--transition-fast);
+}
+
+.option-toggle .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: transform var(--transition-fast);
+}
+
+.option-toggle input[type="checkbox"]:checked + .toggle-slider {
+    background: var(--accent-primary);
+}
+
+.option-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(14px);
+}
+
+.toggle-label {
+    color: var(--text-secondary);
+    font-size: 12px;
 }

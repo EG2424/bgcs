@@ -540,19 +540,25 @@ class BGCSUIControls {
      * Update selection UI elements
      */
     updateSelectionUI() {
+        // Sync with app's selectedEntities
+        if (window.bgcsApp) {
+            window.bgcsApp.selectedEntities = this.selectedEntities;
+        }
+        
         // Update selection counter
         if (window.bgcsApp && window.bgcsApp.elements.selectedCounter) {
             window.bgcsApp.elements.selectedCounter.textContent = this.selectedEntities.size.toString();
+            console.log(`Updated selected counter: ${this.selectedEntities.size}`);
         }
         
         // Update selection info panel
         const selectionInfo = document.getElementById('selection-info');
         if (selectionInfo) {
             if (this.selectedEntities.size > 0) {
-                selectionInfo.style.display = 'block';
+                selectionInfo.classList.add('visible');
                 this.updateSelectionDetails();
             } else {
-                selectionInfo.style.display = 'none';
+                selectionInfo.classList.remove('visible');
             }
         }
     }
