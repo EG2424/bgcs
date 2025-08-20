@@ -154,7 +154,7 @@ class BGCSUIControls {
         this.hasDragged = false;
         
         // Check for multi-select mode
-        this.isMultiSelectMode = e.shiftKey;
+        this.isMultiSelectMode = e.ctrlKey;
         
         // Handle different mouse buttons and interaction modes
         if (e.button === 0) { // Left mouse button
@@ -556,6 +556,24 @@ class BGCSUIControls {
                 selectedCounter.style.display = 'none';
             }
             console.log(`Updated selected counter: ${this.selectedEntities.size}`);
+        }
+        
+        // Update visual selection highlighting in assets and groups menus
+        if (window.bgcsApp && window.bgcsApp.updateAssetMenuSelection) {
+            window.bgcsApp.updateAssetMenuSelection();
+        }
+        if (window.bgcsApp && window.bgcsApp.updateGroupMenuSelection) {
+            window.bgcsApp.updateGroupMenuSelection();
+        }
+        
+        // Show/hide Control Panel based on selection
+        const controlsPanel = document.getElementById('controls-panel');
+        if (controlsPanel) {
+            if (this.selectedEntities.size > 0) {
+                controlsPanel.classList.add('has-selection');
+            } else {
+                controlsPanel.classList.remove('has-selection');
+            }
         }
     }
     
