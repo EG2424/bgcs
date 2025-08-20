@@ -31,6 +31,25 @@
         </div>
         
         <div class="header-right">
+            <!-- Spawn Controls -->
+            <div class="header-spawn-controls">
+                <button class="header-spawn-btn" id="spawn-drone">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    Drone
+                </button>
+                <button class="header-spawn-btn" id="spawn-target">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Target
+                </button>
+            </div>
+            
             <!-- Options Menu -->
             <div class="header-options">
                 <button class="options-toggle" id="options-toggle" title="Options">
@@ -94,7 +113,10 @@
             <div class="sidebar-header">
                 <div class="header-with-counter">
                     <h3>Assets</h3>
-                    <span class="counter-badge" id="entity-counter">0</span>
+                    <div class="counter-group">
+                        <span class="counter-badge" id="entity-counter">0</span>
+                        <span class="counter-badge selected" id="selected-counter" style="display: none;">0 selected</span>
+                    </div>
                 </div>
                 <div class="sidebar-controls">
                     <button class="btn-icon" id="refresh-entities" title="Refresh">
@@ -112,37 +134,20 @@
             </div>
             
             <div class="sidebar-content">
-                <div class="spawn-section">
-                    <div class="spawn-buttons">
-                        <button class="btn btn-primary btn-compact" id="spawn-drone">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            </svg>
-                            Drone
-                        </button>
-                        <button class="btn btn-primary btn-compact" id="spawn-target">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/>
-                                <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                            Target
-                        </button>
+                <div class="entity-section">
+                    
+                    <div class="filter-controls">
+                        <input type="text" class="search-input" id="entity-search" placeholder="Search assets...">
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="drone">Drones</button>
+                            <button class="filter-btn" data-filter="target">Targets</button>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="filter-controls">
-                    <input type="text" class="search-input" id="entity-search" placeholder="Search assets...">
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" data-filter="all">All</button>
-                        <button class="filter-btn" data-filter="drone">Drones</button>
-                        <button class="filter-btn" data-filter="target">Targets</button>
+                    
+                    <div class="entity-list" id="entity-list">
+                        <!-- Entities will be populated dynamically -->
                     </div>
-                </div>
-                
-                <div class="entity-list" id="entity-list">
-                    <!-- Entities will be populated dynamically -->
                 </div>
                 
                 <div class="groups-section">
@@ -169,33 +174,6 @@
             <div class="canvas-overlays">
 
                 <!-- Canvas controls moved to header options menu -->
-
-                <!-- Selection Info -->
-                <div class="selection-info" id="selection-info">
-                    <div class="selection-header">
-                        <div class="header-with-counter">
-                            <h4>Selected Assets</h4>
-                            <span class="counter-badge" id="selected-counter">0</span>
-                        </div>
-                        <button class="btn-icon btn-small" id="clear-selection">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="selection-content" id="selection-content">
-                        <!-- Selection details will be populated dynamically -->
-                    </div>
-                    <div class="selection-actions">
-                        <button class="btn btn-danger" id="delete-selected">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                <path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6V20C19 20.5523 18.4477 21 18 21H6C5.44772 21 5 20.5523 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                            Delete Selected
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
 

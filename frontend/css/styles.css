@@ -232,8 +232,47 @@ body {
 .header-right {
     display: flex;
     align-items: center;
+    gap: var(--padding-md);
     min-width: 200px;
     justify-content: flex-end;
+}
+
+.header-spawn-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+}
+
+.header-spawn-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--padding-xs);
+    padding: var(--padding-xs) var(--padding-sm);
+    font-size: 11px;
+    font-weight: 400;
+    min-width: auto;
+    height: 28px; /* Slightly smaller */
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    
+    /* Very subtle styling */
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-quaternary);
+    
+    /* Smooth transitions */
+    transition: all var(--transition-fast);
+}
+
+.header-spawn-btn:hover {
+    background: var(--glass-panel-dark);
+    border-color: var(--glass-border-primary);
+    color: var(--text-primary);
+}
+
+.header-spawn-btn:active {
+    background: var(--glass-panel-light);
+    transform: translateY(1px);
 }
 
 .system-metrics {
@@ -300,6 +339,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    z-index: 10; /* Base sidebar layer */
     scrollbar-width: thin;
     scrollbar-color: var(--glass-border-secondary) transparent;
     transition: all var(--transition-medium);
@@ -378,7 +418,144 @@ body {
 .sidebar-content {
     padding: var(--padding-lg);
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for proper flexbox behavior */
+    max-height: 100%;
+}
+
+/* Entity section should be flexible but not push groups down */
+.entity-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden; /* Prevent entity section from overflowing */
+}
+
+/* Spawn section should be fixed size */
+.spawn-section {
+    flex-shrink: 0;
+    margin-bottom: var(--padding-sm); /* Reduced from padding-md */
+}
+
+/* Filter controls should be fixed size */
+.filter-controls {
+    flex-shrink: 0;
+    margin-bottom: var(--padding-sm); /* Reduced from padding-md for consistency */
+}
+
+/* Groups section should be at bottom but scrollable */
+.groups-section {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding-top: var(--padding-md);
+    border-top: 1px solid var(--glass-border-subtle);
+    display: flex;
+    flex-direction: column;
+    max-height: 200px; /* Limit height to allow scrolling */
+    min-height: 80px; /* Minimum space for groups */
+}
+
+/* Groups List with scrolling */
+.groups-list {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Custom scrollbar styling - same as entity list */
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border-primary) transparent;
+}
+
+.groups-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.groups-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.groups-list::-webkit-scrollbar-thumb {
+    background: var(--glass-border-primary);
+    border-radius: 3px;
+}
+
+.groups-list::-webkit-scrollbar-thumb:hover {
+    background: var(--glass-border-secondary);
+}
+
+/* Group Item Styling */
+.group-item {
+    padding: var(--padding-sm);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: 4px;
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--glass-border-secondary);
+    backdrop-filter: blur(var(--blur-light));
+    
+    /* Prevent text selection for multi-select functionality */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.group-item:hover {
+    background: var(--glass-panel-light);
+    border-color: var(--glass-border-primary);
+}
+
+.group-item.selected {
+    background: var(--accent-glass);
+    border-color: var(--accent-primary);
+}
+
+.group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+    margin-bottom: var(--padding-xs);
+}
+
+.group-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-xs);
+    background: var(--glass-panel-secondary);
+    color: var(--info);
+}
+
+.group-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.group-name {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.group-count {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    opacity: 0.8;
+    color: var(--text-tertiary);
+}
+
+.group-actions {
+    display: flex;
+    gap: 4px;
 }
 
 /* Nearly Invisible Targets Panel */
@@ -813,61 +990,6 @@ body {
     font-weight: 500;
 }
 
-/* Nearly Invisible Selection Info */
-.selection-info {
-    position: fixed;
-    bottom: calc(var(--console-height) + var(--padding-xl) * 2);
-    left: var(--padding-xl);
-    max-width: 320px;
-    background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.02);
-    box-shadow: none;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
-    pointer-events: none;
-    z-index: 75;
-}
-
-.selection-info.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-
-.selection-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--padding-md);
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.selection-header h4 {
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.selection-content {
-    padding: var(--padding-md);
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.selection-actions {
-    padding: var(--padding-md);
-    border-top: 1px solid var(--glass-border-subtle);
-}
-
-.selection-actions .btn {
-    width: 100%;
-    justify-content: center;
-    gap: var(--padding-sm);
-}
 
 /* Enhanced Button Styles */
 .btn {
@@ -1091,24 +1213,113 @@ body {
 /* Entity List */
 .entity-list {
     margin-bottom: var(--padding-md);
+    flex: 0 0 auto; /* Don't grow, fixed size */
+    min-height: 120px; /* Minimum height to show at least a few entities */
+    max-height: 250px; /* Start scrolling earlier to preserve groups space */
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Custom scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border-primary) transparent;
+}
+
+.entity-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.entity-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.entity-list::-webkit-scrollbar-thumb {
+    background: var(--glass-border-primary);
+    border-radius: 3px;
+}
+
+.entity-list::-webkit-scrollbar-thumb:hover {
+    background: var(--glass-border-secondary);
 }
 
 .entity-item {
-    display: flex;
-    align-items: center;
-    gap: var(--padding-sm);
     padding: var(--padding-sm);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--glass-border-secondary);
+    backdrop-filter: blur(var(--blur-light));
+    
+    /* Prevent text selection for multi-select functionality */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
+.entity-item:hover {
+    background: var(--glass-panel-light);
+    border-color: var(--glass-border-primary);
+}
 
 .entity-item.selected {
-    background: var(--accent-primary);
-    color: white;
+    background: var(--accent-glass);
+    border-color: var(--accent-primary);
 }
+
+.entity-header {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+    margin-bottom: var(--padding-xs);
+}
+
+.entity-type-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-xs);
+    background: var(--glass-panel-secondary);
+}
+
+.entity-type-icon.drone {
+    color: var(--success);
+}
+
+.entity-type-icon.target {
+    color: var(--danger);
+}
+
+.entity-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.entity-name {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.entity-status {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.entity-actions {
+    display: flex;
+    gap: 4px;
+}
+
 
 .entity-icon {
     width: 16px;
@@ -1140,8 +1351,8 @@ body {
 
 /* Spawn Section */
 .spawn-section {
-    margin-bottom: var(--padding-md);
-    padding-bottom: var(--padding-md);
+    margin-bottom: var(--padding-sm);
+    padding-bottom: var(--padding-sm); /* Reduced from padding-md */
     border-bottom: 1px solid var(--glass-border-subtle);
 }
 
@@ -1152,8 +1363,8 @@ body {
 }
 
 .btn-compact {
-    padding: var(--padding-sm) var(--padding-md);
-    font-size: 13px;
+    padding: var(--padding-xs) var(--padding-sm); /* More compact padding */
+    font-size: 12px; /* Slightly smaller font */
     font-weight: 500;
     min-width: auto;
     flex: 1;
@@ -1631,6 +1842,19 @@ input:focus,
     display: flex;
     align-items: center;
     gap: var(--padding-sm);
+}
+
+.counter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-xs);
+}
+
+.counter-badge.selected {
+    background: var(--accent-glass);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    font-size: var(--font-size-xs);
 }
 
 .counter-badge {

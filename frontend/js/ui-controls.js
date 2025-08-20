@@ -277,11 +277,12 @@ class BGCSUIControls {
                 // Reset camera to top-down orientation
                 this.cameraManager.resetToTopDown();
                 break;
-            case 'Delete':
-            case 'Backspace':
-                e.preventDefault();
-                this.deleteSelectedEntities();
-                break;
+            // Delete key handled by app.js instead
+            // case 'Delete':
+            // case 'Backspace':
+            //     e.preventDefault();
+            //     this.deleteSelectedEntities();
+            //     break;
             case 'Escape':
                 e.preventDefault();
                 this.clearSelection();
@@ -545,55 +546,19 @@ class BGCSUIControls {
             window.bgcsApp.selectedEntities = this.selectedEntities;
         }
         
-        // Update selection counter
-        if (window.bgcsApp && window.bgcsApp.elements.selectedCounter) {
-            window.bgcsApp.elements.selectedCounter.textContent = this.selectedEntities.size.toString();
-            console.log(`Updated selected counter: ${this.selectedEntities.size}`);
-        }
-        
-        // Update selection info panel
-        const selectionInfo = document.getElementById('selection-info');
-        if (selectionInfo) {
+        // Update selection counter in Assets header
+        const selectedCounter = document.getElementById('selected-counter');
+        if (selectedCounter) {
             if (this.selectedEntities.size > 0) {
-                selectionInfo.classList.add('visible');
-                this.updateSelectionDetails();
+                selectedCounter.textContent = `${this.selectedEntities.size} selected`;
+                selectedCounter.style.display = 'block';
             } else {
-                selectionInfo.classList.remove('visible');
+                selectedCounter.style.display = 'none';
             }
+            console.log(`Updated selected counter: ${this.selectedEntities.size}`);
         }
     }
     
-    /**
-     * Update selection details panel
-     */
-    updateSelectionDetails() {
-        const content = document.getElementById('selection-content');
-        if (!content) return;
-        
-        const selectedArray = Array.from(this.selectedEntities);
-        let html = '';
-        
-        selectedArray.forEach(entityId => {
-            const mesh = this.renderer3D.entities.get(entityId);
-            if (mesh) {
-                const type = mesh.userData.type;
-                const pos = mesh.position;
-                html += `
-                    <div class="selection-item">
-                        <div class="selection-item-header">
-                            <span class="entity-type">${type.toUpperCase()}</span>
-                            <span class="entity-id">${entityId}</span>
-                        </div>
-                        <div class="selection-item-details">
-                            <span>Position: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})</span>
-                        </div>
-                    </div>
-                `;
-            }
-        });
-        
-        content.innerHTML = html;
-    }
     
     /**
      * Focus camera on selected entities

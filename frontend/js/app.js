@@ -24,6 +24,10 @@ class BGCSApp {
         // UI Elements
         this.elements = {};
         
+        // Groups management
+        this.groups = new Map(); // groupId -> groupData
+        this.groupCounter = 0;
+        
         // Console
         this.console = {
             maxEntries: 1000,
@@ -177,6 +181,11 @@ class BGCSApp {
         this.entityControls.addWaypoint('demo_drone_1', { x: 10, y: 5, z: 10 });
         this.entityControls.addWaypoint('demo_drone_1', { x: -10, y: 5, z: 10 });
         
+        // Add demo entities to Assets panel
+        this.addEntityToList(drone1Data);
+        this.addEntityToList(target1Data);
+        this.addEntityToList(drone2Data);
+        
         console.log('Added demo entities with data models');
         
         this.log('Added 3 demo entities to scene', 'info');
@@ -219,6 +228,9 @@ class BGCSApp {
             const randomMode = modes[Math.floor(Math.random() * modes.length)];
             this.entityControls.setEntityMode(entityId, randomMode);
         }
+        
+        // Add to Assets panel
+        this.addEntityToList(entityData);
         
         // Log success
         this.log(`Spawned ${type} "${entityId}" at (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`, 'success');
@@ -394,6 +406,19 @@ class BGCSApp {
             this.elements.collapseEntities.addEventListener('click', () => this.toggleEntityListCollapse());
         }
         
+        // Entity search functionality
+        if (this.elements.entitySearch) {
+            this.elements.entitySearch.addEventListener('input', (e) => this.filterEntityList(e.target.value));
+        }
+        
+        // Create group button
+        const createGroupBtn = document.getElementById('create-group');
+        if (createGroupBtn) {
+            createGroupBtn.addEventListener('click', () => {
+                this.createGroupFromSelected();
+            });
+        }
+        
         // Canvas controls toggle
         if (this.elements.canvasControlsToggle) {
             this.elements.canvasControlsToggle.addEventListener('click', () => this.toggleCanvasControls());
@@ -430,24 +455,39 @@ class BGCSApp {
             });
         }
         
-        // Other buttons (keep existing functionality)
-        const otherButtons = ['deleteSelected', 'focusSelected', 'clearAllWaypoints', 'centerView'];
-        otherButtons.forEach(buttonKey => {
-            const button = this.elements[buttonKey];
-            if (button) {
-                button.addEventListener('click', () => {
-                    this.log(`${buttonKey} clicked (placeholder)`, 'info');
-                    // Will be implemented when needed
-                });
-            }
-        });
+        // Control Panel buttons
+        if (this.elements.deleteSelected) {
+            this.elements.deleteSelected.addEventListener('click', () => {
+                this.deleteSelectedEntities();
+            });
+        }
+        
+        if (this.elements.focusSelected) {
+            this.elements.focusSelected.addEventListener('click', () => {
+                this.focusOnSelectedEntities();
+            });
+        }
+        
+        if (this.elements.clearAllWaypoints) {
+            this.elements.clearAllWaypoints.addEventListener('click', () => {
+                this.clearAllWaypoints();
+            });
+        }
+        
+        if (this.elements.centerView) {
+            this.elements.centerView.addEventListener('click', () => {
+                this.centerView();
+            });
+        }
         
         // Filter buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
-                this.log(`Filter changed to: ${e.target.dataset.filter}`, 'info');
+                const filterType = e.target.dataset.filter;
+                this.filterEntitiesByType(filterType);
+                this.log(`Filter changed to: ${filterType}`, 'info');
             });
         });
         
@@ -456,7 +496,9 @@ class BGCSApp {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
-                this.log(`Mode changed to: ${e.target.dataset.mode}`, 'info');
+                const mode = e.target.dataset.mode;
+                this.applyModeToSelected(mode);
+                this.log(`Applied ${mode} mode to selected entities`, 'info');
             });
         });
     }
@@ -540,7 +582,7 @@ class BGCSApp {
             case 'Delete':
                 if (!event.target.matches('input')) {
                     event.preventDefault();
-                    this.log('Delete selected (placeholder)', 'info');
+                    this.deleteSelectedEntities();
                 }
                 break;
         }
@@ -786,11 +828,464 @@ class BGCSApp {
     }
     
     /**
+     * Add entity to the Assets panel list
+     */
+    addEntityToList(entityData) {
+        const entityList = this.elements.entityList;
+        if (!entityList) {
+            console.warn('Entity list element not found');
+            return;
+        }
+        
+        // Create entity list item
+        const entityItem = document.createElement('div');
+        entityItem.className = `entity-item ${entityData.type}`;
+        entityItem.dataset.entityId = entityData.entity_id;
+        entityItem.dataset.entityType = entityData.type;
+        
+        // Get mode color
+        const modeColors = {
+            'hold_position': '#666666',
+            'random_search': '#00FF00', 
+            'follow_target': '#FF8C00',
+            'follow_teammate': '#9400D3',
+            'waypoint_mode': '#0080FF',
+            'kamikaze': '#FF0000'
+        };
+        
+        const modeColor = modeColors[entityData.mode] || '#666666';
+        
+        entityItem.innerHTML = `
+            <div class="entity-header">
+                <div class="entity-type-icon ${entityData.type}">
+                    ${entityData.type === 'drone' ? 
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7L12 12L22 7L12 2Z"/><path d="M2 17L12 22L22 17"/></svg>' :
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
+                    }
+                </div>
+                <div class="entity-info">
+                    <div class="entity-name">${entityData.entity_id}</div>
+                    <div class="entity-status" style="color: ${modeColor}">${entityData.mode}</div>
+                </div>
+            </div>
+        `;
+        
+        
+        // Add click to select functionality
+        entityItem.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Prevent text selection on shift+click
+            if (e.shiftKey) {
+                e.preventDefault();
+                window.getSelection().removeAllRanges();
+            }
+            
+            // Handle multi-select with shift key
+            if (e.shiftKey) {
+                this.toggleEntitySelection(entityData.entity_id);
+            } else {
+                this.selectEntityFromList(entityData.entity_id);
+            }
+        });
+        
+        // Add to list
+        entityList.appendChild(entityItem);
+        
+        // Update entity counter
+        this.updateEntityCounter();
+        
+        console.log(`Added entity ${entityData.entity_id} to assets panel`);
+    }
+    
+    /**
+     * Remove entity from the Assets panel list
+     */
+    removeEntityFromList(entityId) {
+        console.log(`removeEntityFromList called for: ${entityId}`);
+        
+        const entityList = this.elements.entityList;
+        if (!entityList) {
+            console.error('Entity list element not found!');
+            return;
+        }
+        
+        // Debug: Show all current entities in the list
+        const allItems = entityList.querySelectorAll('.entity-item');
+        console.log('Current entities in list before deletion:', Array.from(allItems).map(item => ({
+            id: item.dataset.entityId,
+            element: item
+        })));
+        
+        // Try multiple selector approaches to ensure we find the entity
+        let entityItem = entityList.querySelector(`[data-entity-id="${entityId}"]`);
+        console.log(`CSS selector result:`, entityItem);
+        
+        // If first approach failed, try finding by iterating through items
+        if (!entityItem) {
+            console.log('CSS selector failed, trying manual iteration...');
+            for (const item of allItems) {
+                console.log(`Checking item with dataset.entityId: "${item.dataset.entityId}" against "${entityId}"`);
+                if (item.dataset.entityId === entityId) {
+                    entityItem = item;
+                    console.log('Found match via manual iteration!');
+                    break;
+                }
+            }
+        }
+        
+        if (entityItem) {
+            console.log(`Successfully found entity item, removing:`, entityItem);
+            entityItem.remove();
+            console.log(`Removed entity ${entityId} from assets panel`);
+            
+            // Verify it was actually removed
+            const remainingItems = entityList.querySelectorAll('.entity-item');
+            console.log('Remaining entities after deletion:', Array.from(remainingItems).map(item => item.dataset.entityId));
+        } else {
+            console.error(`Failed to find entity ${entityId} in assets panel`);
+            console.error('Available entities were:', Array.from(allItems).map(item => item.dataset.entityId));
+        }
+    }
+    
+    /**
+     * Update entity in the Assets panel list
+     */
+    updateEntityInList(entityData) {
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        const entityItem = entityList.querySelector(`[data-entity-id="${entityData.entity_id}"]`);
+        if (entityItem) {
+            // Update only status/mode
+            const statusElement = entityItem.querySelector('.entity-status');
+            
+            if (statusElement) {
+                const modeColors = {
+                    'hold_position': '#666666',
+                    'random_search': '#00FF00', 
+                    'follow_target': '#FF8C00',
+                    'follow_teammate': '#9400D3',
+                    'waypoint_mode': '#0080FF',
+                    'kamikaze': '#FF0000'
+                };
+                const modeColor = modeColors[entityData.mode] || '#666666';
+                statusElement.textContent = entityData.mode;
+                statusElement.style.color = modeColor;
+            }
+        }
+    }
+    
+    /**
+     * Select entity from list click
+     */
+    selectEntityFromList(entityId) {
+        console.log(`selectEntityFromList called for: ${entityId}`);
+        if (this.uiControls) {
+            console.log('Clearing selection...');
+            this.uiControls.clearSelection();
+            console.log('Selecting entity...');
+            this.uiControls.selectEntity(entityId);
+            console.log('Focusing on selected...');
+            this.uiControls.focusOnSelected();
+            console.log('Selected entities after selection:', Array.from(this.uiControls.selectedEntities));
+        } else {
+            console.error('uiControls not available!');
+        }
+    }
+    
+    /**
+     * Toggle entity selection
+     */
+    toggleEntitySelection(entityId) {
+        if (this.uiControls) {
+            if (this.uiControls.selectedEntities.has(entityId)) {
+                this.uiControls.deselectEntity(entityId);
+            } else {
+                this.uiControls.selectEntity(entityId);
+            }
+        }
+    }
+    
+    /**
+     * Apply behavior mode to selected entities
+     */
+    applyModeToSelected(mode) {
+        if (!this.entityControls || !this.uiControls) {
+            this.log('Cannot apply mode: Control systems not initialized', 'error');
+            return;
+        }
+        
+        const selectedEntities = this.uiControls.getSelectedEntities();
+        
+        if (selectedEntities.length === 0) {
+            this.log('No entities selected. Please select entities first.', 'warning');
+            return;
+        }
+        
+        // Apply mode to selected entities using entity controls
+        this.entityControls.setSelectedEntitiesMode(mode);
+        
+        // Auto-create group if waypoint mode is applied to multiple entities
+        if (mode === 'waypoint_mode' && selectedEntities.length >= 2) {
+            this.autoCreateGroupForWaypoints(selectedEntities);
+        }
+        
+        // Update entity items in the list to reflect new mode
+        selectedEntities.forEach(entityId => {
+            const entityData = this.entityControls.getEntity(entityId);
+            if (entityData) {
+                this.updateEntityInList(entityData);
+            }
+        });
+        
+        this.log(`Applied ${mode} mode to ${selectedEntities.length} selected entities`, 'success');
+    }
+    
+    /**
+     * Delete selected entities
+     */
+    deleteSelectedEntities() {
+        console.log('=== DELETE SELECTED ENTITIES CALLED ===');
+        
+        if (!this.uiControls) {
+            console.log('UI controls not initialized');
+            this.log('Cannot delete: UI controls not initialized', 'error');
+            return;
+        }
+        
+        const selectedEntities = this.uiControls.getSelectedEntities();
+        console.log('Selected entities for deletion:', selectedEntities);
+        
+        if (selectedEntities.length === 0) {
+            console.log('No entities selected');
+            this.log('No entities selected to delete', 'warning');
+            return;
+        }
+        
+        // Delete each selected entity
+        selectedEntities.forEach(entityId => {
+            console.log(`Deleting entity: ${entityId}`);
+            this.removeEntity(entityId);
+        });
+        
+        console.log(`=== COMPLETED DELETING ${selectedEntities.length} ENTITIES ===`);
+        this.log(`Deleted ${selectedEntities.length} selected entities`, 'success');
+    }
+    
+    /**
+     * Focus camera on selected entities
+     */
+    focusOnSelectedEntities() {
+        if (!this.uiControls) {
+            this.log('Cannot focus: UI controls not initialized', 'error');
+            return;
+        }
+        
+        const selectedEntities = this.uiControls.getSelectedEntities();
+        
+        if (selectedEntities.length === 0) {
+            this.log('No entities selected to focus on', 'warning');
+            return;
+        }
+        
+        // Use UI controls focus functionality
+        this.uiControls.focusOnSelected();
+        this.log(`Focused camera on ${selectedEntities.length} selected entities`, 'success');
+    }
+    
+    /**
+     * Clear all waypoints for all entities
+     */
+    clearAllWaypoints() {
+        if (!this.entityControls) {
+            this.log('Cannot clear waypoints: Entity controls not initialized', 'error');
+            return;
+        }
+        
+        // Use entity controls method
+        this.entityControls.clearAllWaypoints();
+        this.log('Cleared all waypoints for all entities', 'success');
+    }
+    
+    /**
+     * Center camera view
+     */
+    centerView() {
+        if (!this.cameraManager) {
+            this.log('Cannot center view: Camera manager not initialized', 'error');
+            return;
+        }
+        
+        // Reset camera to center/origin
+        this.cameraManager.focusOn(new THREE.Vector3(0, 0, 0));
+        this.log('Centered camera view', 'success');
+    }
+    
+    /**
+     * Remove entity completely
+     */
+    removeEntity(entityId) {
+        console.log(`=== STARTING DELETION OF ENTITY: ${entityId} ===`);
+        
+        // Remove from 3D scene
+        if (this.renderer3D) {
+            console.log(`Removing ${entityId} from 3D scene`);
+            this.renderer3D.removeEntity(entityId);
+        }
+        
+        // Remove from entity controls
+        if (this.entityControls) {
+            console.log(`Removing ${entityId} from entity controls`);
+            this.entityControls.deleteEntity(entityId);
+        }
+        
+        // Remove from Assets panel
+        console.log(`Removing ${entityId} from Assets panel`);
+        this.removeEntityFromList(entityId);
+        
+        // Update entity counter
+        console.log(`Updating entity counter after deleting ${entityId}`);
+        this.updateEntityCounter();
+        
+        // Clear selection if it was selected
+        if (this.uiControls && this.uiControls.selectedEntities.has(entityId)) {
+            console.log(`Clearing selection for ${entityId}`);
+            this.uiControls.deselectEntity(entityId);
+        }
+        
+        console.log(`=== COMPLETED DELETION OF ENTITY: ${entityId} ===`);
+        this.log(`Deleted entity ${entityId}`, 'info');
+    }
+    
+    /**
      * Refresh entity list
      */
     refreshEntityList() {
         this.log('Refreshing entity list...', 'info');
-        // Placeholder - will be implemented when WebSocket client is ready
+        
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        // Clear existing list
+        entityList.innerHTML = '';
+        
+        // Repopulate from entity controls data
+        if (this.entityControls) {
+            const allEntities = this.entityControls.getAllEntities();
+            allEntities.forEach(entityData => {
+                this.addEntityToList(entityData);
+            });
+            
+            this.log(`Refreshed ${allEntities.length} entities in list`, 'info');
+        }
+    }
+    
+    /**
+     * Filter entity list based on search term
+     */
+    filterEntityList(searchTerm) {
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        // Get current type filter
+        const activeFilterButton = document.querySelector('.filter-btn.active');
+        const currentTypeFilter = activeFilterButton ? activeFilterButton.dataset.filter : 'all';
+        
+        const searchLower = searchTerm.toLowerCase();
+        const entityItems = entityList.querySelectorAll('.entity-item');
+        
+        entityItems.forEach(item => {
+            const entityId = item.dataset.entityId;
+            const entityType = item.dataset.entityType;
+            const entityName = item.querySelector('.entity-name')?.textContent || '';
+            
+            // Check search match
+            const searchMatches = !searchTerm || 
+                                entityId.toLowerCase().includes(searchLower) ||
+                                entityType.toLowerCase().includes(searchLower) ||
+                                entityName.toLowerCase().includes(searchLower);
+            
+            // Check type filter
+            const typeMatches = currentTypeFilter === 'all' || entityType === currentTypeFilter;
+            
+            // Show only if both search and type filters match
+            item.style.display = (searchMatches && typeMatches) ? 'block' : 'none';
+        });
+        
+        // Update counter
+        this.updateEntityCounter();
+    }
+    
+    /**
+     * Filter entity list based on entity type
+     */
+    filterEntitiesByType(filterType) {
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        // Get current search term
+        const searchInput = this.elements.entitySearch;
+        const searchTerm = searchInput ? searchInput.value : '';
+        const searchLower = searchTerm.toLowerCase();
+        
+        const entityItems = entityList.querySelectorAll('.entity-item');
+        
+        entityItems.forEach(item => {
+            const entityId = item.dataset.entityId;
+            const entityType = item.dataset.entityType;
+            const entityName = item.querySelector('.entity-name')?.textContent || '';
+            
+            // Check search match
+            const searchMatches = !searchTerm || 
+                                entityId.toLowerCase().includes(searchLower) ||
+                                entityType.toLowerCase().includes(searchLower) ||
+                                entityName.toLowerCase().includes(searchLower);
+            
+            // Check type filter
+            const typeMatches = filterType === 'all' || entityType === filterType;
+            
+            // Show only if both search and type filters match
+            item.style.display = (searchMatches && typeMatches) ? 'block' : 'none';
+        });
+        
+        // Update entity counter based on visible items
+        this.updateEntityCounter();
+    }
+    
+    /**
+     * Update entity counter to show filtered count
+     */
+    updateEntityCounter() {
+        if (this.elements.entityCounter) {
+            const entityList = this.elements.entityList;
+            if (entityList) {
+                const visibleItems = entityList.querySelectorAll('.entity-item[style*="block"], .entity-item:not([style*="none"])');
+                this.elements.entityCounter.textContent = visibleItems.length.toString();
+            }
+        }
+    }
+
+    /**
+     * TEST METHOD: Delete first entity in the assets list
+     */
+    testDeleteFirstEntity() {
+        console.log('=== TEST DELETE FIRST ENTITY ===');
+        const entityList = this.elements.entityList;
+        if (!entityList) {
+            console.error('Entity list not found');
+            return;
+        }
+        
+        const firstEntity = entityList.querySelector('.entity-item');
+        if (firstEntity) {
+            const entityId = firstEntity.dataset.entityId;
+            console.log(`Testing deletion of first entity: ${entityId}`);
+            this.removeEntity(entityId);
+        } else {
+            console.log('No entities found in list');
+        }
     }
     
     /**
@@ -883,6 +1378,245 @@ class BGCSApp {
                 toggleButton.title = 'View Options';
             }
         }
+    }
+    
+    // ===== GROUP MANAGEMENT METHODS =====
+    
+    /**
+     * Create group from currently selected entities
+     */
+    createGroupFromSelected() {
+        if (!this.uiControls) {
+            this.log('Cannot create group: UI controls not initialized', 'error');
+            return;
+        }
+        
+        const selectedEntities = this.uiControls.getSelectedEntities();
+        
+        if (selectedEntities.length < 2) {
+            this.log('Select at least 2 entities to create a group', 'warning');
+            return;
+        }
+        
+        this.createGroup(selectedEntities);
+    }
+    
+    /**
+     * Create a new group with specified entities
+     */
+    createGroup(entityIds, groupName = null) {
+        if (!entityIds || entityIds.length === 0) {
+            this.log('Cannot create group: No entities provided', 'error');
+            return null;
+        }
+        
+        this.groupCounter++;
+        const groupId = `group_${this.groupCounter}`;
+        const finalGroupName = groupName || `Group ${this.groupCounter}`;
+        
+        // Get entity types for group classification
+        const entityTypes = new Set();
+        const entities = [];
+        
+        entityIds.forEach(entityId => {
+            if (this.entityControls) {
+                const entityData = this.entityControls.getEntity(entityId);
+                if (entityData) {
+                    entities.push(entityData);
+                    entityTypes.add(entityData.type);
+                }
+            }
+        });
+        
+        // Determine group type
+        let groupType = 'mixed';
+        if (entityTypes.size === 1) {
+            groupType = Array.from(entityTypes)[0] + 's'; // 'drones' or 'targets'
+        }
+        
+        const groupData = {
+            id: groupId,
+            name: finalGroupName,
+            type: groupType,
+            entities: [...entityIds],
+            created: new Date().toISOString(),
+            waypoints: [],
+            mode: 'hold_position'
+        };
+        
+        this.groups.set(groupId, groupData);
+        this.addGroupToList(groupData);
+        
+        this.log(`Created ${finalGroupName} with ${entityIds.length} entities`, 'success');
+        return groupId;
+    }
+    
+    /**
+     * Add group to the Groups list UI
+     */
+    addGroupToList(groupData) {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) {
+            console.warn('Groups list element not found');
+            return;
+        }
+        
+        const groupItem = document.createElement('div');
+        groupItem.className = 'group-item';
+        groupItem.dataset.groupId = groupData.id;
+        
+        groupItem.innerHTML = `
+            <div class="group-header">
+                <div class="group-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 18v-1c0-2.66 5.33-4 8-4s8 1.34 8 4v1H4zM12 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                </div>
+                <div class="group-info">
+                    <div class="group-name">${groupData.name}</div>
+                    <div class="group-count">${groupData.entities.length} ${groupData.type}</div>
+                </div>
+            </div>
+        `;
+        
+        
+        // Add click to select functionality
+        groupItem.addEventListener('click', () => {
+            this.selectGroup(groupData.id);
+        });
+        
+        groupsList.appendChild(groupItem);
+        console.log(`Added group ${groupData.name} to groups panel`);
+    }
+    
+    /**
+     * Select all entities in a group
+     */
+    selectGroup(groupId) {
+        const groupData = this.groups.get(groupId);
+        if (!groupData) {
+            this.log(`Group ${groupId} not found`, 'error');
+            return;
+        }
+        
+        if (!this.uiControls) {
+            this.log('Cannot select group: UI controls not initialized', 'error');
+            return;
+        }
+        
+        // Clear current selection
+        this.uiControls.clearSelection();
+        
+        // Select all entities in the group
+        let selectedCount = 0;
+        groupData.entities.forEach(entityId => {
+            if (this.renderer3D && this.renderer3D.entities.has(entityId)) {
+                this.uiControls.selectEntity(entityId);
+                selectedCount++;
+            }
+        });
+        
+        // Focus on the selected group
+        if (selectedCount > 0) {
+            this.uiControls.focusOnSelected();
+            this.log(`Selected ${groupData.name} (${selectedCount} entities)`, 'success');
+        } else {
+            this.log(`No entities found for ${groupData.name}`, 'warning');
+        }
+        
+        // Update group item visual state
+        this.updateGroupSelection(groupId, true);
+    }
+    
+    /**
+     * Delete a group (but not the entities)
+     */
+    deleteGroup(groupId) {
+        const groupData = this.groups.get(groupId);
+        if (!groupData) {
+            this.log(`Group ${groupId} not found`, 'error');
+            return;
+        }
+        
+        // Remove from groups map
+        this.groups.delete(groupId);
+        
+        // Remove from UI
+        this.removeGroupFromList(groupId);
+        
+        this.log(`Deleted group ${groupData.name}`, 'success');
+    }
+    
+    /**
+     * Remove group from Groups list UI
+     */
+    removeGroupFromList(groupId) {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+        
+        const groupItem = groupsList.querySelector(`[data-group-id="${groupId}"]`);
+        if (groupItem) {
+            groupItem.remove();
+            console.log(`Removed group ${groupId} from groups panel`);
+        }
+    }
+    
+    /**
+     * Update group selection visual state
+     */
+    updateGroupSelection(groupId, selected) {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+        
+        // Clear all selections first
+        groupsList.querySelectorAll('.group-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        // Add selection to current group
+        if (selected) {
+            const groupItem = groupsList.querySelector(`[data-group-id="${groupId}"]`);
+            if (groupItem) {
+                groupItem.classList.add('selected');
+            }
+        }
+    }
+    
+    /**
+     * Auto-create group when waypoints are assigned to multiple selected entities
+     */
+    autoCreateGroupForWaypoints(entityIds) {
+        if (entityIds.length >= 2) {
+            // Check if these entities are already in a group together
+            const existingGroup = this.findGroupWithEntities(entityIds);
+            
+            if (!existingGroup) {
+                const groupId = this.createGroup(entityIds, `Waypoint Group ${this.groupCounter}`);
+                this.log(`Auto-created waypoint group with ${entityIds.length} entities`, 'info');
+                return groupId;
+            } else {
+                this.log(`Updated waypoints for existing ${existingGroup.name}`, 'info');
+                return existingGroup.id;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Find group that contains all specified entities
+     */
+    findGroupWithEntities(entityIds) {
+        for (const [groupId, groupData] of this.groups) {
+            const groupEntitySet = new Set(groupData.entities);
+            const entityIdSet = new Set(entityIds);
+            
+            // Check if all entityIds are in this group
+            if (entityIds.every(id => groupEntitySet.has(id)) && 
+                groupData.entities.length === entityIds.length) {
+                return groupData;
+            }
+        }
+        return null;
     }
 }
 
