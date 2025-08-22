@@ -123,8 +123,8 @@ class Drone(Entity):
     def _update_follow_target(self, delta_time: float) -> None:
         """Follow Target: Maintain distance from a specific target entity."""
         if not self.target_entity_id:
-            # No target, switch to random search
-            self.set_mode("random_search")
+            # No target assigned - stay in follow_target mode and hold position
+            # Don't automatically switch modes - wait for user to assign target or change mode
             return
         
         # Find target entity
@@ -154,9 +154,9 @@ class Drone(Entity):
                     )
                     self.target_position = target_entity.position + orbit_offset
             else:
-                # Target doesn't exist or destroyed, search for new target
+                # Target doesn't exist or is destroyed - stay in follow_target mode
+                # Don't automatically switch modes - wait for user to assign new target or change mode
                 self.target_entity_id = None
-                self.set_mode("random_search")
                 return
         
         self._move_towards_target(delta_time)
@@ -164,8 +164,8 @@ class Drone(Entity):
     def _update_follow_teammate(self, delta_time: float) -> None:
         """Follow Teammate: Formation flying with another drone."""
         if not self.teammate_entity_id:
-            # No teammate, switch to random search
-            self.set_mode("random_search")
+            # No teammate assigned - stay in follow_teammate mode and hold position
+            # Don't automatically switch modes - wait for user to assign teammate or change mode
             return
         
         # Find teammate entity
@@ -189,9 +189,9 @@ class Drone(Entity):
                 else:
                     self.target_position = teammate.position + formation_offset
             else:
-                # Teammate doesn't exist, search for new teammate or switch mode
+                # Teammate doesn't exist or is destroyed - stay in follow_teammate mode
+                # Don't automatically switch modes - wait for user to assign new teammate or change mode
                 self.teammate_entity_id = None
-                self.set_mode("random_search")
                 return
         
         self._move_towards_target(delta_time)
@@ -204,8 +204,8 @@ class Drone(Entity):
             if next_waypoint:
                 self.target_position = next_waypoint
             else:
-                # No more waypoints, hold position
-                self.set_mode("hold_position")
+                # No waypoints available - stay in waypoint mode and hold current position
+                # Don't automatically switch modes - wait for user to assign waypoints or change mode
                 return
         
         self._move_towards_target(delta_time)
@@ -213,7 +213,8 @@ class Drone(Entity):
     def _update_kamikaze(self, delta_time: float) -> None:
         """Kamikaze: Active hunting mode with sacrificial attacks."""
         if not self.kamikaze_enabled:
-            self.set_mode("random_search")
+            # Kamikaze disabled - stay in kamikaze mode but hold position
+            # Don't automatically switch modes - wait for user to enable kamikaze or change mode
             return
         
         if not self.target_entity_id:

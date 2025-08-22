@@ -18,9 +18,9 @@ class BGCS3DRenderer {
         // Performance tracking
         this.fps = 0;
         this.lastFrameTime = 0;
+        this.lastRenderTime = 0;
         this.frameCount = 0;
         
-        console.log('BGCS3DRenderer initialized');
     }
     
     /**
@@ -28,24 +28,12 @@ class BGCS3DRenderer {
      */
     init() {
         try {
-            console.log('Initializing 3D scene...');
-            
-            console.log('Creating scene...');
             this.createScene();
-            
-            console.log('Creating renderer...');
             this.createRenderer();
-            
-            console.log('Creating lighting...');
             this.createLighting();
-            
-            console.log('Creating ground...');
             this.createGround();
-            
-            console.log('Setting up event listeners...');
             this.setupEventListeners();
             
-            console.log('3D Scene initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize 3D scene:', error);
@@ -89,17 +77,27 @@ class BGCS3DRenderer {
      * Create Three.js renderer
      */
     createRenderer() {
-        // Check if WebGL is available
-        if (!this.canvas.getContext('webgl') && !this.canvas.getContext('experimental-webgl')) {
+        // Check if WebGL is available without creating a context
+        const tempCanvas = document.createElement('canvas');
+        const webglSupported = !!(tempCanvas.getContext('webgl') || tempCanvas.getContext('experimental-webgl'));
+        
+        if (!webglSupported) {
             throw new Error('WebGL is not supported in this browser');
         }
         
-        this.renderer = new THREE.WebGLRenderer({
-            canvas: this.canvas,
-            antialias: true,
-            alpha: false,
-            premultipliedAlpha: false
-        });
+        try {
+            this.renderer = new THREE.WebGLRenderer({
+                canvas: this.canvas,
+                antialias: true,
+                alpha: false,
+                premultipliedAlpha: false,
+                powerPreference: 'high-performance',
+                failIfMajorPerformanceCaveat: false
+            });
+        } catch (error) {
+            console.error('Failed to create WebGL renderer:', error);
+            throw new Error(`WebGL renderer creation failed: ${error.message}`);
+        }
         
         this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -110,7 +108,6 @@ class BGCS3DRenderer {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
         
-        console.log('WebGL renderer created successfully');
     }
     
     /**
@@ -246,7 +243,6 @@ class BGCS3DRenderer {
         this.lastFrameTime = performance.now();
         this.renderLoop();
         
-        console.log('3D rendering started');
     }
     
     /**
@@ -261,7 +257,6 @@ class BGCS3DRenderer {
             this.animationFrameId = null;
         }
         
-        console.log('3D rendering stopped');
     }
     
     /**
@@ -272,19 +267,29 @@ class BGCS3DRenderer {
         
         const currentTime = performance.now();
         
-        // Calculate FPS
-        this.frameCount++;
-        if (currentTime - this.lastFrameTime >= 1000) {
-            this.fps = Math.round(this.frameCount * 1000 / (currentTime - this.lastFrameTime));
-            this.frameCount = 0;
-            this.lastFrameTime = currentTime;
+        // Cap to 60 FPS for smooth movement
+        if (!this.lastRenderTime) this.lastRenderTime = currentTime;
+        const deltaTime = currentTime - this.lastRenderTime;
+        const targetFPS = 60;
+        const frameInterval = 1000 / targetFPS; // 16.67ms
+        
+        if (deltaTime >= frameInterval) {
+            // Calculate FPS
+            this.frameCount++;
+            if (currentTime - this.lastFrameTime >= 1000) {
+                this.fps = Math.round(this.frameCount * 1000 / (currentTime - this.lastFrameTime));
+                this.frameCount = 0;
+                this.lastFrameTime = currentTime;
+            }
+            
+            // Update entities (if any)
+            this.updateEntities();
+            
+            // Render the scene
+            this.render();
+            
+            this.lastRenderTime = currentTime;
         }
-        
-        // Update entities (if any)
-        this.updateEntities();
-        
-        // Render the scene
-        this.render();
         
         // Continue loop
         this.animationFrameId = requestAnimationFrame(() => this.renderLoop());
@@ -329,7 +334,6 @@ class BGCS3DRenderer {
         
         const mesh = new THREE.Mesh(geometry, material);
         
-        console.log('Created drone mesh with geometry:', geometry);
         return mesh;
     }
     
@@ -347,7 +351,6 @@ class BGCS3DRenderer {
         
         const mesh = new THREE.Mesh(geometry, material);
         
-        console.log('Created target mesh with geometry:', geometry);
         return mesh;
     }
     
@@ -358,7 +361,6 @@ class BGCS3DRenderer {
         // Remove existing entity if it exists
         this.removeEntity(entityId);
         
-        console.log(`Creating ${type} entity ${entityId} at position:`, position);
         
         // Create appropriate mesh based on type
         let mesh;
@@ -373,7 +375,6 @@ class BGCS3DRenderer {
         
         // Set position
         mesh.position.set(position.x, position.y, position.z);
-        console.log(`Positioned mesh at:`, mesh.position);
         
         // Store entity data
         mesh.userData = {
@@ -389,8 +390,6 @@ class BGCS3DRenderer {
         this.scene.add(mesh);
         this.entities.set(entityId, mesh);
         
-        console.log(`Added ${type} entity ${entityId} to scene. Total entities:`, this.entities.size);
-        console.log('Scene children count:', this.scene.children.length);
     }
     
     /**
@@ -412,7 +411,6 @@ class BGCS3DRenderer {
             }
             
             this.entities.delete(entityId);
-            console.log(`Removed entity ${entityId} from scene`);
         }
     }
     
@@ -473,7 +471,6 @@ class BGCS3DRenderer {
         }
         
         this.scene = null;
-        console.log('3D Renderer disposed');
     }
 }
 

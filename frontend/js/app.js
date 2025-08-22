@@ -15,6 +15,11 @@ class BGCSApp {
         this.uiControls = null;
         this.entityControls = null;
         
+        // Network components
+        this.websocketClient = null;
+        this.entityStateManager = null;
+        this.isConnected = false;
+        
         // UI State
         this.selectedEntities = new Set();
         this.currentView = 'top'; // 'top' or '3d'
@@ -38,7 +43,11 @@ class BGCSApp {
             entries: []
         };
         
-        console.log('BGCS App initialized');
+        // Performance tracking
+        this.lastStateUpdate = 0;
+        this.stateUpdateCount = 0;
+        this.averageLatency = 0;
+        
     }
     
     /**
@@ -49,12 +58,16 @@ class BGCSApp {
             this.setupCanvas();
             this.setup3DScene();
             this.setupControls();
+            this.setupNetworking();
             this.setupUIElements();
             this.setupEventListeners();
             this.setupConsole();
             
             this.startUIUpdateLoop();
             this.startRendering();
+            
+            // Connect to backend after UI is ready
+            await this.connectToBackend();
             
             this.initialized = true;
             this.log('BGCS Ground Control Station initialized', 'info');
@@ -78,7 +91,6 @@ class BGCSApp {
         }
         
         this.resizeCanvas();
-        console.log('Canvas initialized:', this.canvas.width, 'x', this.canvas.height);
     }
     
     /**
@@ -103,7 +115,6 @@ class BGCSApp {
             // Add some demo entities for testing
             this.addDemoEntities();
             
-            console.log('3D Scene setup complete');
             this.log('3D Scene Foundation initialized', 'success');
         } catch (error) {
             console.error('3D Scene setup failed:', error);
@@ -118,6 +129,9 @@ class BGCSApp {
      * Setup 2D fallback if 3D fails
      */
     setup2DFallback() {
+        // Skip 2D fallback if 3D renderer is active
+        if (this.renderer3D) return;
+        
         // Only get 2D context if 3D failed
         if (!this.ctx) {
             this.ctx = this.canvas.getContext('2d');
@@ -149,7 +163,6 @@ class BGCSApp {
             }
             window.bgcsEntityControls = this.entityControls; // Make globally accessible
             
-            console.log('Control systems setup complete');
             this.log('UI and Entity Controls initialized', 'success');
         } catch (error) {
             console.error('Control systems setup failed:', error);
@@ -158,13 +171,306 @@ class BGCSApp {
     }
     
     /**
-     * Add demo entities for testing
+     * Setup networking components
+     */
+    setupNetworking() {
+        try {
+            // Initialize entity state manager
+            this.entityStateManager = new BGCSEntityStateManager();
+            window.bgcsEntityStateManager = this.entityStateManager; // Make globally accessible
+            
+            // Initialize WebSocket client
+            this.websocketClient = new BGCSWebSocketClient();
+            window.bgcsWebSocketClient = this.websocketClient; // Make globally accessible
+            
+            // Setup state manager event listeners
+            this.setupStateManagerEvents();
+            
+            // Setup WebSocket event listeners
+            this.setupWebSocketEvents();
+            
+            this.log('WebSocket client and state manager initialized', 'success');
+        } catch (error) {
+            console.error('Networking setup failed:', error);
+            this.log(`Networking setup failed: ${error.message}`, 'error');
+        }
+    }
+    
+    /**
+     * Setup entity state manager event listeners
+     */
+    setupStateManagerEvents() {
+        // Entity creation
+        this.entityStateManager.on('entity_created', (entity) => {
+            this.handleEntityCreated(entity);
+        });
+        
+        // Entity updates
+        this.entityStateManager.on('entity_updated', (entity, oldPosition) => {
+            this.handleEntityUpdated(entity, oldPosition);
+        });
+        
+        // Entity removal
+        this.entityStateManager.on('entity_removed', (entity) => {
+            this.handleEntityRemoved(entity);
+        });
+        
+        // Selection changes (not used - selection is frontend-only)
+        
+        // State updates
+        this.entityStateManager.on('state_updated', (stateData) => {
+            this.handleStateUpdated(stateData);
+        });
+    }
+    
+    /**
+     * Setup WebSocket event listeners
+     */
+    setupWebSocketEvents() {
+        // Connection events
+        this.websocketClient.onConnected((clientId) => {
+            this.isConnected = true;
+            this.log(`Connected to backend server (Client ID: ${clientId})`, 'success');
+            this.updateConnectionStatus('online');
+        });
+        
+        this.websocketClient.onDisconnected(() => {
+            this.isConnected = false;
+            this.log('Disconnected from backend server', 'warning');
+            this.updateConnectionStatus('offline');
+        });
+        
+        // State update messages
+        this.websocketClient.onMessage('state_update', (data) => {
+            this.entityStateManager.processStateUpdate(data);
+            this.stateUpdateCount++;
+            this.lastStateUpdate = Date.now();
+        });
+        
+        // Entity event messages
+        this.websocketClient.onMessage('entity_spawned', (data) => {
+            this.log(`Entity spawned: ${data.entity_type} "${data.entity_id}"`, 'info');
+        });
+        
+        this.websocketClient.onMessage('entity_deleted', (data) => {
+            this.log(`Entity deleted: "${data.entity_id}"`, 'info');
+        });
+        
+        this.websocketClient.onMessage('entity_mode_changed', (data) => {
+            this.log(`Entity "${data.entity_id}" mode changed to ${data.mode}`, 'info');
+            
+            // Immediately update entity state for instant UI response
+            const entity = this.entityStateManager.getEntity(data.entity_id);
+            if (entity) {
+                entity.currentMode = data.mode;
+            }
+            
+            // Update control panel immediately if this entity is selected
+            if (this.uiControls.selectedEntities.has(data.entity_id)) {
+                this.updateControlPanelModes();
+            }
+        });
+        
+        this.websocketClient.onMessage('entity_path_changed', (data) => {
+            this.log(`Entity "${data.entity_id}" path updated (${data.waypoints_added} waypoints)`, 'info');
+        });
+        
+        // Selection events (not used - selection is frontend-only)
+        
+        // Simulation control events
+        this.websocketClient.onMessage('simulation_control', (data) => {
+            this.log(`Simulation ${data.message}`, 'info');
+        });
+        
+        // Chat messages
+        this.websocketClient.onMessage('chat_message', (data) => {
+            this.log(`[${data.sender}]: ${data.message}`, 'chat');
+        });
+        
+        // Error handling
+        this.websocketClient.onMessage('error', (data) => {
+            this.log(`Server error: ${data.message}`, 'error');
+        });
+        
+        // JSON parse error handling (silent for cleaner console)
+        this.websocketClient.onMessage('parse_error', (data) => {
+            // Parse errors handled silently
+        });
+    }
+    
+    /**
+     * Connect to backend server
+     */
+    async connectToBackend() {
+        try {
+            this.log('Connecting to backend server...', 'info');
+            await this.websocketClient.connect();
+            
+            // Start interpolation loop for smooth entity movement
+            this.startInterpolationLoop();
+            
+        } catch (error) {
+            console.error('Failed to connect to backend:', error);
+            this.log(`Connection failed: ${error.message}`, 'error');
+        }
+    }
+    
+    /**
+     * Start entity position interpolation loop
+     */
+    startInterpolationLoop() {
+        let lastInterpolationTime = 0;
+        const targetFPS = 60;
+        const frameInterval = 1000 / targetFPS; // 16.67ms
+        
+        const interpolate = (currentTime) => {
+            if (currentTime - lastInterpolationTime >= frameInterval) {
+                if (this.entityStateManager) {
+                    this.entityStateManager.interpolatePositions();
+                }
+                lastInterpolationTime = currentTime;
+            }
+            requestAnimationFrame(interpolate);
+        };
+        requestAnimationFrame(interpolate);
+    }
+    
+    // ===== ENTITY STATE SYNCHRONIZATION HANDLERS =====
+    
+    /**
+     * Handle entity created from state manager
+     */
+    handleEntityCreated(entity) {
+        // Add entity to 3D scene
+        if (this.renderer3D) {
+            this.renderer3D.addEntity(entity.id, entity.type, entity.position);
+            
+            // Set visual properties based on entity data
+            this.updateEntityVisuals(entity);
+        }
+        
+        // Add entity to Assets panel
+        this.addEntityToList({
+            entity_id: entity.id,
+            type: entity.type,
+            mode: entity.currentMode || 'idle'
+        });
+        
+    }
+    
+    /**
+     * Handle entity updated from state manager
+     */
+    handleEntityUpdated(entity, oldPosition) {
+        // Update 3D scene position
+        if (this.renderer3D) {
+            this.renderer3D.updateEntityPosition(entity.id, entity.position);
+            this.updateEntityVisuals(entity);
+        }
+        
+        // Update Assets panel if mode changed
+        if (entity.currentMode) {
+            this.updateEntityInList({
+                entity_id: entity.id,
+                type: entity.type,
+                mode: entity.currentMode
+            });
+        }
+        
+        // Update control panel if this entity is selected and mode changed
+        if (this.uiControls && this.uiControls.selectedEntities.has(entity.id)) {
+            this.updateControlPanelModes();
+        }
+    }
+    
+    /**
+     * Handle entity removed from state manager
+     */
+    handleEntityRemoved(entity) {
+        // Remove from 3D scene
+        if (this.renderer3D) {
+            this.renderer3D.removeEntity(entity.id);
+        }
+        
+        // Remove from Assets panel
+        this.removeEntityFromList(entity.id);
+        
+        // Remove from groups
+        this.cleanupEmptyGroups(entity.id);
+        
+    }
+    
+    
+    /**
+     * Handle complete state update from state manager
+     */
+    handleStateUpdated(stateData) {
+        // Update performance metrics
+        this.updatePerformanceDisplay(stateData.stats);
+    }
+    
+    /**
+     * Update entity visual properties in 3D scene
+     */
+    updateEntityVisuals(entity) {
+        if (!this.renderer3D) return;
+        
+        // For now, just ensure the entity exists in the 3D scene
+        // Color and selection updates will be handled when we implement 
+        // the visual enhancement features in future chunks
+        
+        // The 3D renderer currently supports:
+        // - updateEntityPosition (which is called in handleEntityUpdated)
+        // - addEntity / removeEntity for basic lifecycle
+        
+        // Future chunk will add:
+        // - updateEntityColor
+        // - setEntitySelected
+        // - visual mode indicators
+        
+        // Visual updates will be implemented in future chunks
+    }
+    
+    /**
+     * Update connection status indicator
+     */
+    updateConnectionStatus(status) {
+        if (this.elements.connectionStatus) {
+            this.elements.connectionStatus.className = `status-indicator ${status}`;
+        }
+        
+        // Update mission title to show connection status
+        if (this.elements.missionTitle) {
+            const baseTitle = 'UAV Ground Control Station';
+            const statusText = status === 'online' ? ' - Connected' : ' - Disconnected';
+            this.elements.missionTitle.textContent = baseTitle + statusText;
+        }
+    }
+    
+    /**
+     * Update performance display with backend statistics
+     */
+    updatePerformanceDisplay(stats) {
+        // This could update a performance panel if we had one
+        // For now, just track the stats
+        if (stats && stats.fps) {
+            this.backendFPS = stats.fps;
+        }
+    }
+    
+    /**
+     * Add demo entities for testing (only if not connected to backend)
      */
     addDemoEntities() {
+        // Only add demo entities if we're not connected to backend
+        if (this.isConnected && this.websocketClient) {
+            this.log('Connected to backend - live entities will be synchronized', 'info');
+            return;
+        }
+        
         if (!this.renderer3D || !this.entityControls) return;
         
         // Add demo entities closer to center and at ground level for better visibility
-        console.log('Adding demo entities...');
         
         // Create entity data models
         const drone1Data = this.entityControls.createEntity('demo_drone_1', 'drone', { x: 0, y: 3, z: 0, yaw: 0 });
@@ -190,9 +496,7 @@ class BGCSApp {
         this.addEntityToList(target1Data);
         this.addEntityToList(drone2Data);
         
-        console.log('Added demo entities with data models');
-        
-        this.log('Added 3 demo entities to scene', 'info');
+        this.log('Added 3 demo entities to scene (offline mode)', 'info');
         this.log('Selection: Click to select, Shift+click for multi-select, Drag entities around', 'info');
         this.log('Camera Controls: Left drag = orbit(3D)/pan(2D), Middle drag = pan, Wheel = zoom, Keys 1/2 = switch view', 'info');
         this.log('Console Commands: bgcsApp.spawnMultiple("drone", 5) or bgcsApp.spawnMultiple("target", 3)', 'info');
@@ -201,47 +505,37 @@ class BGCSApp {
     /**
      * Spawn a new entity (drone or target)
      */
-    spawnEntity(type) {
-        if (!this.renderer3D || !this.entityControls) {
-            this.log('Cannot spawn: 3D scene not initialized', 'error');
+    async spawnEntity(type) {
+        if (!this.websocketClient || !this.isConnected) {
+            this.log('Cannot spawn: Not connected to backend server', 'error');
             return;
         }
         
-        // Generate unique ID
-        const timestamp = Date.now();
-        const randomId = Math.floor(Math.random() * 1000);
-        const entityId = `${type}_${timestamp}_${randomId}`;
-        
-        // Generate random position
-        const position = this.getRandomSpawnPosition();
-        
-        // Create entity data model
-        const entityData = this.entityControls.createEntity(entityId, type, {
-            x: position.x,
-            y: position.y, 
-            z: position.z,
-            yaw: Math.random() * 360
-        });
-        
-        // Add to 3D scene
-        this.renderer3D.addEntity(entityId, type, position);
-        
-        // Set random initial mode
-        if (type === 'drone') {
-            const modes = ['hold_position', 'random_search', 'waypoint_mode'];
-            const randomMode = modes[Math.floor(Math.random() * modes.length)];
-            this.entityControls.setEntityMode(entityId, randomMode);
+        try {
+            // Generate unique ID
+            const timestamp = Date.now();
+            const randomId = Math.floor(Math.random() * 1000);
+            const entityId = `${type}_${timestamp}_${randomId}`;
+            
+            // Generate random position
+            const position = this.getRandomSpawnPosition();
+            
+            // Send spawn command to backend
+            const response = await this.websocketClient.spawnEntity(type, entityId, position);
+            
+            if (response && response.entity_id) {
+                this.log(`Spawned ${type} "${response.entity_id}" via backend`, 'success');
+                return response.entity_id;
+            } else {
+                this.log(`Failed to spawn ${type} - no response from backend`, 'error');
+                return null;
+            }
+            
+        } catch (error) {
+            console.error('Error spawning entity:', error);
+            this.log(`Failed to spawn ${type}: ${error.message}`, 'error');
+            return null;
         }
-        
-        // Add to Assets panel
-        this.addEntityToList(entityData);
-        
-        // Log success
-        this.log(`Spawned ${type} "${entityId}" at (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`, 'success');
-        
-        console.log(`Spawned ${type}:`, entityId, 'at position:', position);
-        
-        return entityId;
     }
     
     /**
@@ -340,7 +634,6 @@ class BGCSApp {
             }
         }
         
-        console.log('UI elements setup complete');
     }
     
     /**
@@ -438,7 +731,6 @@ class BGCSApp {
         // Control buttons (placeholder functionality)
         this.setupControlButtons();
         
-        console.log('Event listeners setup complete');
     }
     
     /**
@@ -481,13 +773,10 @@ class BGCSApp {
         // Mode buttons (both regular and compact)
         document.querySelectorAll('.mode-btn, .mode-btn-compact').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Find the correct button container to clear active states
-                const isCompact = btn.classList.contains('mode-btn-compact');
-                const selector = isCompact ? '.mode-btn-compact' : '.mode-btn';
-                document.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
-                
-                btn.classList.add('active');
                 const mode = btn.dataset.mode;
+                
+                // Don't update UI immediately - let backend response drive the UI state
+                // This prevents flickering between clicked state and actual backend state
                 this.applyModeToSelected(mode);
                 this.log(`Applied ${mode} mode to selected entities`, 'info');
             });
@@ -518,20 +807,10 @@ class BGCSApp {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
-        // Placeholder click handling
+        // Canvas click handling - now handled by 3D UI controls
         this.log(`Canvas clicked at (${Math.round(x)}, ${Math.round(y)})`, 'info');
         
-        // Simple click feedback - draw a circle
-        this.ctx.strokeStyle = '#007AFF';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 10, 0, 2 * Math.PI);
-        this.ctx.stroke();
-        
-        // Fade the circle after a short time
-        setTimeout(() => {
-            this.drawPlaceholderContent();
-        }, 1000);
+        // Note: Entity selection is handled by the 3D UI controls system
     }
     
     /**
@@ -633,6 +912,8 @@ class BGCSApp {
      * Draw placeholder content on canvas
      */
     drawPlaceholderContent() {
+        // Skip 2D drawing if 3D renderer is active
+        if (this.renderer3D) return;
         if (!this.ctx) return;
         
         // Clear canvas
@@ -673,6 +954,8 @@ class BGCSApp {
      * Draw grid overlay
      */
     drawGrid() {
+        // Skip 2D drawing if 3D renderer is active  
+        if (this.renderer3D) return;
         if (!this.ctx) return;
         
         const gridSize = 50;
@@ -700,15 +983,21 @@ class BGCSApp {
      * Start UI update loop
      */
     startUIUpdateLoop() {
-        const updateLoop = () => {
-            // Update UI elements
-            this.updateUI();
+        let lastFrameTime = 0;
+        const targetFPS = 30;
+        const frameInterval = 1000 / targetFPS; // 33.33ms
+        
+        const updateLoop = (currentTime) => {
+            if (currentTime - lastFrameTime >= frameInterval) {
+                // Update UI elements
+                this.updateUI();
+                lastFrameTime = currentTime;
+            }
             
             requestAnimationFrame(updateLoop);
         };
         
         requestAnimationFrame(updateLoop);
-        console.log('UI update loop started');
     }
     
     /**
@@ -724,7 +1013,7 @@ class BGCSApp {
             this.elements.entityCounter.textContent = entityCount.toString();
         }
         
-        // Get selected count for floating control panel
+        // Get selected count for floating control panel from frontend UI controls
         const selectedCount = this.uiControls ? this.uiControls.selectedEntities.size : 0;
         
         // Update floating control panel
@@ -746,11 +1035,103 @@ class BGCSApp {
         // Update selected count in floating panel
         this.elements.floatingSelectedCount.textContent = selectedCount.toString();
         
-        // Show/hide floating control panel based on selection
-        if (selectedCount > 0) {
-            this.elements.controlsPanel.classList.add('has-selection');
-        } else {
-            this.elements.controlsPanel.classList.remove('has-selection');
+        // Only update if selection state changed to avoid excessive processing
+        const hasSelection = selectedCount > 0;
+        const hadSelection = this.elements.controlsPanel.classList.contains('has-selection');
+        
+        if (hasSelection !== hadSelection) {
+            // Selection state changed
+            if (hasSelection) {
+                this.elements.controlsPanel.classList.add('has-selection');
+                // Update mode buttons to reflect current state of selected entities
+                this.updateControlPanelModes();
+            } else {
+                this.elements.controlsPanel.classList.remove('has-selection');
+                // Clear any active mode indicators
+                this.clearControlPanelModes();
+            }
+        }
+    }
+    
+    /**
+     * Update control panel mode buttons to reflect current entity modes
+     */
+    updateControlPanelModes() {
+        if (!this.uiControls || !this.entityStateManager) return;
+        
+        const selectedEntityIds = Array.from(this.uiControls.selectedEntities);
+        if (selectedEntityIds.length === 0) return;
+        
+        // Update immediately - no debounce for responsive UI
+        this._doUpdateControlPanelModes(selectedEntityIds);
+    }
+    
+    /**
+     * Internal method to actually update control panel modes
+     */
+    _doUpdateControlPanelModes(selectedEntityIds) {
+        // Get current modes of selected entities from backend state
+        const entityModes = new Set();
+        selectedEntityIds.forEach(entityId => {
+            const entity = this.entityStateManager.getEntity(entityId);
+            if (entity && entity.currentMode) {
+                entityModes.add(entity.currentMode);
+            }
+        });
+        
+        
+        // Clear all active states first
+        this.clearControlPanelModes();
+        
+        // Set active state for current modes
+        const modeButtons = document.querySelectorAll('.mode-btn-compact');
+        modeButtons.forEach(button => {
+            const buttonMode = button.dataset.mode;
+            if (entityModes.has(buttonMode)) {
+                if (entityModes.size === 1) {
+                    // All entities have the same mode - show as active
+                    button.classList.add('active');
+                } else {
+                    // Mixed modes - show as partially active
+                    button.classList.add('mixed');
+                }
+            }
+        });
+        
+        // Update panel header to show mode info
+        this.updateControlPanelHeader(selectedEntityIds.length, entityModes);
+    }
+    
+    /**
+     * Clear all mode button states in control panel
+     */
+    clearControlPanelModes() {
+        const modeButtons = document.querySelectorAll('.mode-btn-compact');
+        modeButtons.forEach(button => {
+            button.classList.remove('active', 'mixed');
+        });
+    }
+    
+    /**
+     * Update control panel header with mode information
+     */
+    updateControlPanelHeader(entityCount, modes) {
+        const header = document.querySelector('.control-panel-header h4');
+        if (header) {
+            // Remove header text entirely - just show the mode buttons
+            header.textContent = '';
+        }
+        
+        // Also clear any subtitle if it exists
+        const subtitle = document.querySelector('.control-panel-header .mode-subtitle');
+        if (subtitle) {
+            subtitle.textContent = '';
+        }
+        
+        // Hide the selected count as well for cleaner look
+        const selectedCount = document.querySelector('.control-panel-header .selected-count');
+        if (selectedCount) {
+            selectedCount.style.display = 'none';
         }
     }
     
@@ -910,14 +1291,12 @@ class BGCSApp {
         // Update entity counter
         this.updateEntityCounter();
         
-        console.log(`Added entity ${entityData.entity_id} to assets panel`);
     }
     
     /**
      * Remove entity from the Assets panel list
      */
     removeEntityFromList(entityId) {
-        console.log(`removeEntityFromList called for: ${entityId}`);
         
         const entityList = this.elements.entityList;
         if (!entityList) {
@@ -925,38 +1304,24 @@ class BGCSApp {
             return;
         }
         
-        // Debug: Show all current entities in the list
         const allItems = entityList.querySelectorAll('.entity-item');
-        console.log('Current entities in list before deletion:', Array.from(allItems).map(item => ({
-            id: item.dataset.entityId,
-            element: item
-        })));
         
         // Try multiple selector approaches to ensure we find the entity
         let entityItem = entityList.querySelector(`[data-entity-id="${entityId}"]`);
-        console.log(`CSS selector result:`, entityItem);
         
         // If first approach failed, try finding by iterating through items
         if (!entityItem) {
-            console.log('CSS selector failed, trying manual iteration...');
             for (const item of allItems) {
-                console.log(`Checking item with dataset.entityId: "${item.dataset.entityId}" against "${entityId}"`);
                 if (item.dataset.entityId === entityId) {
                     entityItem = item;
-                    console.log('Found match via manual iteration!');
                     break;
                 }
             }
         }
         
         if (entityItem) {
-            console.log(`Successfully found entity item, removing:`, entityItem);
             entityItem.remove();
-            console.log(`Removed entity ${entityId} from assets panel`);
             
-            // Verify it was actually removed
-            const remainingItems = entityList.querySelectorAll('.entity-item');
-            console.log('Remaining entities after deletion:', Array.from(remainingItems).map(item => item.dataset.entityId));
         } else {
             console.error(`Failed to find entity ${entityId} in assets panel`);
             console.error('Available entities were:', Array.from(allItems).map(item => item.dataset.entityId));
@@ -995,15 +1360,10 @@ class BGCSApp {
      * Select entity from list click
      */
     selectEntityFromList(entityId) {
-        console.log(`selectEntityFromList called for: ${entityId}`);
         if (this.uiControls) {
-            console.log('Clearing selection...');
             this.uiControls.clearSelection();
-            console.log('Selecting entity...');
             this.uiControls.selectEntity(entityId);
-            console.log('Focusing on selected...');
             this.uiControls.focusOnSelected();
-            console.log('Selected entities after selection:', Array.from(this.uiControls.selectedEntities));
             
             // Track last selected entity for range selection
             this.lastSelectedEntityId = entityId;
@@ -1011,8 +1371,9 @@ class BGCSApp {
             // Update visual selection in assets and groups menus
             this.updateAssetMenuSelection();
             this.updateGroupMenuSelection();
-        } else {
-            console.error('uiControls not available!');
+            
+            // Update control panel to show current modes
+            this.updateControlPanelModes();
         }
     }
     
@@ -1032,6 +1393,9 @@ class BGCSApp {
             // Update visual selection in assets and groups menus
             this.updateAssetMenuSelection();
             this.updateGroupMenuSelection();
+            
+            // Update control panel to show current modes
+            this.updateControlPanelModes();
         }
     }
 
@@ -1088,65 +1452,95 @@ class BGCSApp {
         // Update last selected to the clicked entity
         this.lastSelectedEntityId = entityId;
 
+        // Update control panel to show current modes of selected entities
+        this.updateControlPanelModes();
+
         // Update visual selection in assets and groups menus
         this.updateAssetMenuSelection();
         this.updateGroupMenuSelection();
-        
-        console.log(`Selected range from index ${startIndex} to ${endIndex}`);
     }
     
     /**
      * Apply behavior mode to selected entities
      */
-    applyModeToSelected(mode) {
-        if (!this.entityControls || !this.uiControls) {
-            this.log('Cannot apply mode: Control systems not initialized', 'error');
+    async applyModeToSelected(mode) {
+        if (!this.websocketClient || !this.isConnected) {
+            this.log('Cannot apply mode: Not connected to backend server', 'error');
             return;
         }
         
-        const selectedEntities = this.uiControls.getSelectedEntities();
+        if (!this.uiControls) {
+            this.log('Cannot apply mode: UI controls not initialized', 'error');
+            return;
+        }
+        
+        const selectedEntities = Array.from(this.uiControls.selectedEntities);
         
         if (selectedEntities.length === 0) {
             this.log('No entities selected. Please select entities first.', 'warning');
             return;
         }
         
-        // Apply mode to selected entities using entity controls
-        this.entityControls.setSelectedEntitiesMode(mode);
-        
-        // Auto-create group if waypoint mode is applied to multiple entities
-        if (mode === 'waypoint_mode' && selectedEntities.length >= 2) {
-            this.autoCreateGroupForWaypoints(selectedEntities);
-        }
-        
-        // Update entity items in the list to reflect new mode
-        selectedEntities.forEach(entityId => {
-            const entityData = this.entityControls.getEntity(entityId);
-            if (entityData) {
-                this.updateEntityInList(entityData);
+        try {
+            // Apply mode to each selected entity via backend
+            const promises = selectedEntities.map(entityId => 
+                this.websocketClient.setEntityMode(entityId, mode)
+            );
+            
+            const results = await Promise.allSettled(promises);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    console.error(`Failed to set mode for entity ${selectedEntities[index]}:`, result.reason);
+                }
+            });
+            
+            if (successCount > 0) {
+                // Auto-create group if waypoint mode is applied to multiple entities
+                if (mode === 'waypoint_mode' && successCount >= 2) {
+                    this.autoCreateGroupForWaypoints(selectedEntities.filter((_, index) => 
+                        results[index].status === 'fulfilled'
+                    ));
+                }
+                
+                this.log(`Applied ${mode} mode to ${successCount} entities${errorCount > 0 ? ` (${errorCount} failed)` : ''}`, 'success');
+                
+                // Control panel will update automatically when backend state changes arrive via WebSocket
+                // This prevents UI flickering between immediate update and actual backend state
+                
+            } else {
+                this.log(`Failed to apply ${mode} mode to any entities`, 'error');
             }
-        });
-        
-        this.log(`Applied ${mode} mode to ${selectedEntities.length} selected entities`, 'success');
+            
+        } catch (error) {
+            console.error('Error applying mode to selected entities:', error);
+            this.log(`Error applying ${mode} mode: ${error.message}`, 'error');
+        }
     }
     
     /**
      * Delete selected entities
      */
-    deleteSelectedEntities() {
-        console.log('=== DELETE SELECTED ENTITIES CALLED ===');
+    async deleteSelectedEntities() {
+        
+        if (!this.websocketClient || !this.isConnected) {
+            this.log('Cannot delete: Not connected to backend server', 'error');
+            return;
+        }
         
         if (!this.uiControls) {
-            console.log('UI controls not initialized');
             this.log('Cannot delete: UI controls not initialized', 'error');
             return;
         }
         
-        const selectedEntities = this.uiControls.getSelectedEntities();
-        console.log('Selected entities for deletion:', selectedEntities);
-        
+        const selectedEntities = Array.from(this.uiControls.selectedEntities);
         if (selectedEntities.length === 0) {
-            console.log('No entities selected');
             this.log('No entities selected to delete', 'warning');
             return;
         }
@@ -1156,24 +1550,42 @@ class BGCSApp {
         
         if (groupToDelete) {
             // If entities form a complete group, delete the group (unbind) instead of deleting entities
-            console.log(`Deleting group: ${groupToDelete} instead of entities`);
             this.deleteGroup(groupToDelete);
-            this.uiControls.clearSelection();
+            
+            // Clear selection via frontend
+            if (this.uiControls) {
+                this.uiControls.clearSelection();
+            }
+            
             this.log(`Disbanded group instead of deleting entities`, 'success');
         } else {
-            // Delete individual entities
-            selectedEntities.forEach(entityId => {
-                console.log(`Deleting entity: ${entityId}`);
-                this.removeEntity(entityId);
-            });
-            
-            console.log(`=== COMPLETED DELETING ${selectedEntities.length} ENTITIES ===`);
-            this.log(`Deleted ${selectedEntities.length} selected entities`, 'success');
+            try {
+                // Delete individual entities via backend
+                const promises = selectedEntities.map(entityId => {
+                    return this.websocketClient.deleteEntity(entityId);
+                });
+                
+                const results = await Promise.allSettled(promises);
+                
+                let successCount = 0;
+                let errorCount = 0;
+                
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error(`Failed to delete entity ${selectedEntities[index]}:`, result.reason);
+                    }
+                });
+                
+                this.log(`Deleted ${successCount} entities${errorCount > 0 ? ` (${errorCount} failed)` : ''}`, successCount > 0 ? 'success' : 'error');
+                
+            } catch (error) {
+                console.error('Error deleting selected entities:', error);
+                this.log(`Error deleting entities: ${error.message}`, 'error');
+            }
         }
-        
-        // Update visual selection after deletion
-        this.updateAssetMenuSelection();
-        this.updateGroupMenuSelection();
     }
     
     
@@ -1183,38 +1595,31 @@ class BGCSApp {
      * Remove entity completely
      */
     removeEntity(entityId) {
-        console.log(`=== STARTING DELETION OF ENTITY: ${entityId} ===`);
         
         // Remove from 3D scene
         if (this.renderer3D) {
-            console.log(`Removing ${entityId} from 3D scene`);
             this.renderer3D.removeEntity(entityId);
         }
         
         // Remove from entity controls
         if (this.entityControls) {
-            console.log(`Removing ${entityId} from entity controls`);
             this.entityControls.deleteEntity(entityId);
         }
         
         // Remove from Assets panel
-        console.log(`Removing ${entityId} from Assets panel`);
         this.removeEntityFromList(entityId);
         
         // Update entity counter
-        console.log(`Updating entity counter after deleting ${entityId}`);
         this.updateEntityCounter();
         
         // Clear selection if it was selected
         if (this.uiControls && this.uiControls.selectedEntities.has(entityId)) {
-            console.log(`Clearing selection for ${entityId}`);
             this.uiControls.deselectEntity(entityId);
         }
         
         // Clean up empty groups after entity deletion
         this.cleanupEmptyGroups(entityId);
         
-        console.log(`=== COMPLETED DELETION OF ENTITY: ${entityId} ===`);
         this.log(`Deleted entity ${entityId}`, 'info');
     }
     
@@ -1411,7 +1816,6 @@ class BGCSApp {
         
         // Delete empty groups
         groupsToDelete.forEach(groupId => {
-            console.log(`Deleting empty group: ${groupId}`);
             this.deleteGroup(groupId);
         });
         
@@ -1424,7 +1828,6 @@ class BGCSApp {
      * TEST METHOD: Delete first entity in the assets list
      */
     testDeleteFirstEntity() {
-        console.log('=== TEST DELETE FIRST ENTITY ===');
         const entityList = this.elements.entityList;
         if (!entityList) {
             console.error('Entity list not found');
@@ -1434,10 +1837,69 @@ class BGCSApp {
         const firstEntity = entityList.querySelector('.entity-item');
         if (firstEntity) {
             const entityId = firstEntity.dataset.entityId;
-            console.log(`Testing deletion of first entity: ${entityId}`);
             this.removeEntity(entityId);
         } else {
-            console.log('No entities found in list');
+        }
+    }
+    
+    /**
+     * TEST METHOD: Test WebSocket connection and functionality
+     */
+    testWebSocketConnection() {
+        
+        if (!this.websocketClient) {
+            console.error('WebSocket client not initialized');
+            return;
+        }
+        
+        const status = this.websocketClient.getStatus();
+        if (status.connected) {
+            
+            // Test ping
+            this.websocketClient.send('ping', { test: true })
+                .catch(error => console.error('❌ Ping failed:', error));
+                
+            // Test state request
+            this.websocketClient.requestState()
+                .then(state => {})
+                .catch(error => console.error('❌ State request failed:', error));
+                
+        }
+        
+        // Test entity state manager
+        if (this.entityStateManager) {
+            const stats = this.entityStateManager.getStats();
+        }
+    }
+    
+    /**
+     * TEST METHOD: Spawn test entity via WebSocket
+     */
+    async testSpawnEntity() {
+        
+        if (!this.isConnected) {
+            console.error('❌ Not connected to backend');
+            return;
+        }
+        
+        try {
+            const entityId = await this.spawnEntity('drone');
+            if (entityId) {
+                
+                // Wait a moment, then test mode change
+                setTimeout(async () => {
+                    try {
+                        await this.websocketClient.setEntityMode(entityId, 'kamikaze');
+                    } catch (error) {
+                        console.error('❌ Mode change failed:', error);
+                    }
+                }, 1000);
+                
+            } else {
+                console.error('❌ Spawn failed - no entity ID returned');
+            }
+        } catch (error) {
+            console.error('❌ Spawn test failed:', error);
         }
     }
     
@@ -1709,7 +2171,6 @@ class BGCSApp {
         });
         
         groupsList.appendChild(groupItem);
-        console.log(`Added group ${groupData.name} to groups panel`);
     }
     
     /**
@@ -1860,7 +2321,6 @@ class BGCSApp {
         this.updateGroupMenuSelection();
         
         this.log(`Selected range: ${endIndex - startIndex + 1} groups (${totalEntitiesSelected} entities)`, 'success');
-        console.log(`Selected group range from index ${startIndex} to ${endIndex}`);
     }
 
     /**
@@ -1896,7 +2356,6 @@ class BGCSApp {
             if (groupCount) {
                 groupCount.textContent = `${groupData.entities.length} ${groupData.type}`;
             }
-            console.log(`Updated group ${groupData.name} count to ${groupData.entities.length}`);
         }
     }
 
@@ -1910,7 +2369,6 @@ class BGCSApp {
         const groupItem = groupsList.querySelector(`[data-group-id="${groupId}"]`);
         if (groupItem) {
             groupItem.remove();
-            console.log(`Removed group ${groupId} from groups panel`);
         }
     }
     
@@ -1975,13 +2433,11 @@ class BGCSApp {
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOM loaded, initializing BGCS App...');
     
     const app = new BGCSApp();
     const success = await app.init();
     
     if (success) {
-        console.log('BGCS App initialization complete');
         
         // Make app globally accessible for debugging
         window.bgcsApp = app;

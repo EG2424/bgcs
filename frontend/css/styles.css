@@ -453,6 +453,13 @@ body {
     color: var(--accent-primary);
 }
 
+.mode-btn-compact.mixed {
+    background: linear-gradient(45deg, var(--accent-glass) 50%, var(--glass-light) 50%);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+    opacity: 0.8;
+}
+
 .mode-btn-compact svg {
     flex-shrink: 0;
 }

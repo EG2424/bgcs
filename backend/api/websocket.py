@@ -107,13 +107,20 @@ class WebSocketManager:
             data = json.loads(message)
             message_type = data.get("type")
             message_data = data.get("data", {})
+            message_id = data.get("message_id")
             
             if message_type in self.message_handlers:
                 response = await self.message_handlers[message_type](client_id, message_data)
                 if response:
+                    # Include message_id in response if it was provided
+                    if message_id:
+                        response["message_id"] = message_id
                     await self._send_to_client(client_id, response)
             else:
-                await self._send_error(client_id, f"Unknown message type: {message_type}")
+                error_response = {"type": "error", "data": {"message": f"Unknown message type: {message_type}"}}
+                if message_id:
+                    error_response["message_id"] = message_id
+                await self._send_to_client(client_id, error_response)
                 
         except json.JSONDecodeError:
             await self._send_error(client_id, "Invalid JSON format")
@@ -573,7 +580,7 @@ async def start_periodic_updates():
         try:
             if websocket_manager.active_connections:
                 await websocket_manager._send_state_update()
-            await asyncio.sleep(0.1)  # 10 FPS update rate for WebSocket
+            await asyncio.sleep(0.05)  # 20 FPS update rate for WebSocket - even smoother movement
         except Exception as e:
             logger.error(f"Error in periodic updates: {e}")
             await asyncio.sleep(1)  # Wait longer on error

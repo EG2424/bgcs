@@ -33,7 +33,6 @@ class BGCSUIControls {
         this.isBoxSelecting = false;
         this.boxSelectStart = { x: 0, y: 0 };
         
-        console.log('BGCSUIControls initialized');
     }
     
     /**
@@ -45,7 +44,6 @@ class BGCSUIControls {
             this.setupKeyboardEvents();
             this.setupTouchEvents();
             
-            console.log('UI Controls initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize UI controls:', error);
@@ -89,7 +87,6 @@ class BGCSUIControls {
             this.clearHover();
         });
         
-        console.log('Mouse events setup complete');
     }
     
     /**
@@ -104,7 +101,6 @@ class BGCSUIControls {
             this.handleKeyUp(e);
         });
         
-        console.log('Keyboard events setup complete');
     }
     
     /**
@@ -140,7 +136,6 @@ class BGCSUIControls {
             this.handleMouseUp(mouseEvent);
         });
         
-        console.log('Touch events setup complete');
     }
     
     /**
@@ -419,8 +414,9 @@ class BGCSUIControls {
         // Update UI
         this.updateSelectionUI();
         
-        console.log(`Selected entity: ${entityId}`);
+        // Update control panel to show entity modes
         if (window.bgcsApp) {
+            window.bgcsApp.updateControlPanelModes();
             window.bgcsApp.log(`Selected ${entityId}`, 'info');
         }
     }
@@ -440,7 +436,10 @@ class BGCSUIControls {
         // Update UI
         this.updateSelectionUI();
         
-        console.log(`Deselected entity: ${entityId}`);
+        // Update control panel
+        if (window.bgcsApp) {
+            window.bgcsApp.updateControlPanelModes();
+        }
     }
     
     /**
@@ -457,7 +456,11 @@ class BGCSUIControls {
         this.selectedEntities.clear();
         this.updateSelectionUI();
         
-        console.log('Cleared selection');
+        // Update control panel
+        if (window.bgcsApp) {
+            window.bgcsApp.updateControlPanelModes();
+        }
+        
     }
     
     /**
@@ -550,12 +553,11 @@ class BGCSUIControls {
         const selectedCounter = document.getElementById('selected-counter');
         if (selectedCounter) {
             if (this.selectedEntities.size > 0) {
-                selectedCounter.textContent = `${this.selectedEntities.size} selected`;
+                selectedCounter.textContent = this.selectedEntities.size.toString();
                 selectedCounter.style.display = 'block';
             } else {
                 selectedCounter.style.display = 'none';
             }
-            console.log(`Updated selected counter: ${this.selectedEntities.size}`);
         }
         
         // Update visual selection highlighting in assets and groups menus
@@ -618,19 +620,16 @@ class BGCSUIControls {
      */
     setInteractionMode(mode) {
         this.interactionMode = mode;
-        console.log(`Interaction mode set to: ${mode}`);
     }
     
     // Additional methods for waypoint placement, context menus, etc. would go here
     
     handleWaypointPlacement(e) {
         // TODO: Implement waypoint placement
-        console.log('Waypoint placement at:', e.clientX, e.clientY);
     }
     
     handleRightClick(e) {
         // TODO: Implement context menu
-        console.log('Right click context menu');
     }
     
     handleCameraOrbit(deltaX, deltaY) {
@@ -645,7 +644,6 @@ class BGCSUIControls {
     
     handleAltitudeAdjust(deltaY) {
         // TODO: Implement altitude adjustment for 2D view
-        console.log('Altitude adjust:', deltaY);
     }
     
     startTemporary3DPreview() {
@@ -658,7 +656,6 @@ class BGCSUIControls {
     
     toggleSelectedEntityMode() {
         // TODO: Toggle mode for selected entities
-        console.log('Toggle entity mode');
     }
     
     deleteSelectedEntities() {

@@ -115,6 +115,7 @@
                     <h3>Assets</h3>
                     <div class="counter-group">
                         <span class="counter-badge" id="entity-counter">0</span>
+                        <span class="counter-badge selected" id="selected-counter" style="display: none;">0</span>
                     </div>
                 </div>
                 <div class="sidebar-controls">
@@ -267,10 +268,16 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <!-- Network layer -->
+    <script src="/static/js/network/websocket.js"></script>
+    <script src="/static/js/entities/manager.js"></script>
+    <!-- 3D Scene -->
     <script src="/static/js/scene/renderer3d.js"></script>
     <script src="/static/js/scene/cameras.js"></script>
+    <!-- Controls -->
     <script src="/static/js/ui-controls.js"></script>
     <script src="/static/js/entity-controls.js"></script>
+    <!-- Main application -->
     <script src="/static/js/app.js"></script>
 </body>
 </html>

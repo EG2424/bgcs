@@ -32,8 +32,8 @@ class SimulationEngine:
     def __init__(self, state_manager: StateManager):
         self.state_manager = state_manager
         
-        # Simulation timing
-        self.target_fps = 60.0
+        # Simulation timing  
+        self.target_fps = 60.0  # Restored to 60 FPS for smoother movement
         self.fixed_timestep = 1.0 / self.target_fps  # 16.67ms
         self.speed_multiplier = 1.0
         self.max_frame_time = 0.05  # 50ms max to prevent spiral of death
