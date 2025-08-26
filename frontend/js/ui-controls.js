@@ -20,6 +20,12 @@ class BGCSUIControls {
         this.selectedEntities = new Set();
         this.hoveredEntity = null;
         
+        // AoE3-style selection controls
+        this.doubleClickSameTypeRadiusPx = 120; // Radius for cohort selection
+        this.lastClickTime = 0;
+        this.lastClickEntity = null;
+        this.doubleClickDelay = 400; // ms for double-click detection
+        
         // Interaction modes
         this.interactionMode = 'select'; // 'select', 'waypoint', 'pan'
         this.isMultiSelectMode = false;
@@ -32,6 +38,8 @@ class BGCSUIControls {
         this.selectionBox = null;
         this.isBoxSelecting = false;
         this.boxSelectStart = { x: 0, y: 0 };
+        this.boxSelectEnd = { x: 0, y: 0 };
+        this.selectionRectangle = null; // Visual selection rectangle element
         
     }
     
@@ -157,6 +165,9 @@ class BGCSUIControls {
             if (this.interactionMode === 'waypoint') {
                 // Set waypoint at clicked location
                 this.handleWaypointPlacement(e);
+            } else if (this.interactionMode === 'select') {
+                // Start box selection immediately (will be cancelled if it's just a click)
+                this.startBoxSelection(e);
             }
             // Left click will handle entity selection on mouse up if no drag occurred
         } else if (e.button === 1) { // Middle mouse button
@@ -183,6 +194,10 @@ class BGCSUIControls {
         if (!wasDragging && e.button === 0) {
             // Only handle entity selection on click (not drag)
             this.handleEntitySelection(e);
+        } else if (wasDragging && e.button === 0 && !this.isBoxSelecting) {
+            // Start box selection if we were dragging with left button
+            // This case shouldn't happen since we start box selection in mouse move
+            // But kept for completeness
         }
         
         // End box selection
@@ -222,6 +237,9 @@ class BGCSUIControls {
                 // Right mouse button - always orbit (unified camera)
                 this.canvas.style.cursor = 'grab';
                 this.handleCameraOrbit(deltaX, deltaY);
+            } else if (this.mouseButton === 0 && this.isBoxSelecting) {
+                // Update box selection when dragging
+                this.updateBoxSelection(e);
             }
         } else {
             // Update hover effects
@@ -380,29 +398,105 @@ class BGCSUIControls {
     }
     
     /**
-     * Handle entity selection
+     * Handle entity selection with AoE3-style double-click cohort selection
      */
     handleEntitySelection(e) {
         const mouseNDC = this.getMouseNDC(e);
         const hit = this.performRaycast(mouseNDC);
         
         if (hit) {
-            if (this.isMultiSelectMode) {
-                // Toggle selection
-                if (this.selectedEntities.has(hit.entityId)) {
-                    this.deselectEntity(hit.entityId);
+            const currentTime = Date.now();
+            const isDoubleClick = (
+                currentTime - this.lastClickTime < this.doubleClickDelay &&
+                this.lastClickEntity === hit.entityId
+            );
+            
+            if (isDoubleClick) {
+                // Double-click: Cohort selection
+                this.handleCohortSelection(hit, e);
+            } else {
+                // Single click: Normal selection
+                if (this.isMultiSelectMode) {
+                    // Toggle selection
+                    if (this.selectedEntities.has(hit.entityId)) {
+                        this.deselectEntity(hit.entityId);
+                    } else {
+                        this.selectEntity(hit.entityId);
+                    }
                 } else {
+                    // Single selection
+                    this.clearSelection();
                     this.selectEntity(hit.entityId);
                 }
-            } else {
-                // Single selection
-                this.clearSelection();
-                this.selectEntity(hit.entityId);
             }
+            
+            // Update double-click tracking
+            this.lastClickTime = currentTime;
+            this.lastClickEntity = hit.entityId;
         } else {
             // Clicked on empty space
             if (!this.isMultiSelectMode) {
                 this.clearSelection();
+            }
+            this.lastClickEntity = null;
+        }
+    }
+    
+    /**
+     * Handle cohort selection (double-click to select all entities of same type in radius)
+     */
+    handleCohortSelection(hit, e) {
+        if (!this.renderer3D || !this.cameraManager.getCurrentCamera()) return;
+        
+        const clickedEntity = window.bgcsEntityStateManager?.getEntity(hit.entityId);
+        if (!clickedEntity) return;
+        
+        const camera = this.cameraManager.getCurrentCamera();
+        const rect = this.canvas.getBoundingClientRect();
+        
+        // Get mouse screen position
+        const mouseScreenX = e.clientX - rect.left;
+        const mouseScreenY = e.clientY - rect.top;
+        
+        // Find all entities of the same type within radius
+        const cohortEntities = [];
+        
+        this.renderer3D.entities.forEach((mesh, entityId) => {
+            const entity = window.bgcsEntityStateManager?.getEntity(entityId);
+            if (!entity || entity.type !== clickedEntity.type) return;
+            
+            // Project entity position to screen
+            const entityPos = mesh.position.clone();
+            entityPos.project(camera);
+            
+            const screenX = ((entityPos.x + 1) / 2) * rect.width;
+            const screenY = ((-entityPos.y + 1) / 2) * rect.height;
+            
+            // Calculate 2D screen distance
+            const distance = Math.sqrt(
+                Math.pow(screenX - mouseScreenX, 2) + 
+                Math.pow(screenY - mouseScreenY, 2)
+            );
+            
+            // Include if within radius
+            if (distance <= this.doubleClickSameTypeRadiusPx) {
+                cohortEntities.push(entityId);
+            }
+        });
+        
+        // Apply selection
+        if (cohortEntities.length > 0) {
+            if (!this.isMultiSelectMode) {
+                this.clearSelection();
+            }
+            
+            cohortEntities.forEach(entityId => {
+                this.selectEntity(entityId);
+            });
+            
+            // Log cohort selection
+            if (window.bgcsApp) {
+                window.bgcsApp.log(`Cohort selected: ${cohortEntities.length} ${clickedEntity.type}s`, 'info');
             }
         }
     }
@@ -414,17 +508,57 @@ class BGCSUIControls {
         this.isBoxSelecting = true;
         this.boxSelectStart.x = e.clientX;
         this.boxSelectStart.y = e.clientY;
+        this.boxSelectEnd.x = e.clientX;
+        this.boxSelectEnd.y = e.clientY;
         
-        // Create visual box selection indicator
-        // This would be implemented with CSS overlay
+        // Create visual selection rectangle if not exists
+        if (!this.selectionRectangle) {
+            this.createSelectionRectangle();
+        }
+        
+        // Initialize rectangle at canvas-relative coordinates
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const relativeX = e.clientX - canvasRect.left;
+        const relativeY = e.clientY - canvasRect.top;
+        
+        this.selectionRectangle.style.left = relativeX + 'px';
+        this.selectionRectangle.style.top = relativeY + 'px';
+        this.selectionRectangle.style.width = '0px';
+        this.selectionRectangle.style.height = '0px';
+        this.selectionRectangle.style.display = 'block';
     }
     
     /**
      * Update box selection
      */
     updateBoxSelection(e) {
-        // Update visual box selection indicator
-        // Calculate entities within selection box
+        // Update end position
+        this.boxSelectEnd.x = e.clientX;
+        this.boxSelectEnd.y = e.clientY;
+        
+        // Create or update visual selection rectangle
+        if (!this.selectionRectangle) {
+            this.createSelectionRectangle();
+        }
+        
+        // Convert to canvas-relative coordinates
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const startX = this.boxSelectStart.x - canvasRect.left;
+        const startY = this.boxSelectStart.y - canvasRect.top;
+        const endX = this.boxSelectEnd.x - canvasRect.left;
+        const endY = this.boxSelectEnd.y - canvasRect.top;
+        
+        // Update rectangle dimensions and position
+        const minX = Math.min(startX, endX);
+        const minY = Math.min(startY, endY);
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        
+        this.selectionRectangle.style.left = minX + 'px';
+        this.selectionRectangle.style.top = minY + 'px';
+        this.selectionRectangle.style.width = width + 'px';
+        this.selectionRectangle.style.height = height + 'px';
+        this.selectionRectangle.style.display = 'block';
     }
     
     /**
@@ -433,8 +567,109 @@ class BGCSUIControls {
     endBoxSelection() {
         this.isBoxSelecting = false;
         
-        // Perform box selection logic
-        // Remove visual indicator
+        // Hide visual indicator
+        if (this.selectionRectangle) {
+            this.selectionRectangle.style.display = 'none';
+        }
+        
+        // Calculate selection bounds (use screen coordinates directly)
+        const minX = Math.min(this.boxSelectStart.x, this.boxSelectEnd.x);
+        const maxX = Math.max(this.boxSelectStart.x, this.boxSelectEnd.x);
+        const minY = Math.min(this.boxSelectStart.y, this.boxSelectEnd.y);
+        const maxY = Math.max(this.boxSelectStart.y, this.boxSelectEnd.y);
+        
+        // Only perform selection if box is large enough (minimum 10x10 pixels)
+        if (Math.abs(maxX - minX) < 10 || Math.abs(maxY - minY) < 10) {
+            return;
+        }
+        
+        // Clear existing selection if not holding Ctrl/Shift
+        if (!this.isMultiSelectMode) {
+            this.clearSelection();
+        }
+        
+        // Check all entities to see which ones fall within the selection box
+        const selectedEntities = [];
+        const rendererEntities = this.renderer3D?.entities || new Map();
+        
+        rendererEntities.forEach((mesh, entityId) => {
+            // Get entity world position from mesh
+            const worldPosition = {
+                x: mesh.position.x,
+                y: mesh.position.y,
+                z: mesh.position.z
+            };
+            
+            // Get entity screen position
+            const screenPos = this.worldToScreen(worldPosition);
+            if (screenPos && 
+                screenPos.x >= minX && screenPos.x <= maxX &&
+                screenPos.y >= minY && screenPos.y <= maxY) {
+                selectedEntities.push(entityId);
+            }
+        });
+        
+        // Select found entities
+        selectedEntities.forEach(entityId => {
+            this.selectEntity(entityId);
+        });
+        
+        // Log selection result
+        if (window.bgcsApp && selectedEntities.length > 0) {
+            window.bgcsApp.log(`Box selected ${selectedEntities.length} entities`, 'info');
+        }
+    }
+    
+    /**
+     * Create visual selection rectangle element
+     */
+    createSelectionRectangle() {
+        if (this.selectionRectangle) return;
+        
+        this.selectionRectangle = document.createElement('div');
+        this.selectionRectangle.className = 'bgcs-selection-rectangle';
+        this.selectionRectangle.style.cssText = `
+            position: absolute;
+            pointer-events: none;
+            border: 1px solid #888888;
+            border-style: solid;
+            background-color: rgba(128, 128, 128, 0.15);
+            z-index: 1000;
+            display: none;
+            box-sizing: border-box;
+        `;
+        
+        // Add to canvas container or body
+        const canvasContainer = this.canvas.parentElement || document.body;
+        canvasContainer.appendChild(this.selectionRectangle);
+    }
+    
+    /**
+     * Convert world position to screen coordinates
+     */
+    worldToScreen(worldPosition) {
+        if (!window.bgcsCameras || !this.renderer3D) return null;
+        
+        try {
+            const camera = window.bgcsCameras.getCurrentCamera();
+            if (!camera) return null;
+            
+            // Create vector from world position
+            const vector = new THREE.Vector3(worldPosition.x, worldPosition.y, worldPosition.z);
+            
+            // Project to screen coordinates
+            vector.project(camera);
+            
+            // Convert to screen pixels (use absolute coordinates like mouse events)
+            const canvasRect = this.canvas.getBoundingClientRect();
+            const screenX = (vector.x + 1) * canvasRect.width / 2 + canvasRect.left;
+            const screenY = (-vector.y + 1) * canvasRect.height / 2 + canvasRect.top;
+            
+            return { x: screenX, y: screenY };
+        } catch (error) {
+            console.warn('Error converting world to screen coordinates:', error);
+            return null;
+        }
     }
     
     /**
