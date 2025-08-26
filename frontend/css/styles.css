@@ -266,18 +266,6 @@ body {
 .floating-control-panel.has-selection {
     display: block;
     opacity: 1;
-    animation: slideInRight 0.3s ease-out;
-}
-
-@keyframes slideInRight {
-    from {
-        transform: translateY(-50%) translateX(20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(-50%) translateX(0);
-        opacity: 1;
-    }
 }
 
 .control-panel-header {
@@ -379,20 +367,6 @@ body {
         width: 200px;
     }
     
-    .floating-control-panel.has-selection {
-        animation: slideInUp 0.3s ease-out;
-    }
-    
-    @keyframes slideInUp {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
 }
 
 /* Enhanced Custom Scrollbar */
