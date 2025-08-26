@@ -31,7 +31,7 @@ class Drone(Entity):
     - Grey: Destroyed
     """
     
-    def __init__(self, entity_id: Optional[str] = None, position: Optional[Vector3] = None):
+    def __init__(self, entity_id: Optional[str] = None, position: Optional[Vector3] = None, **kwargs):
         super().__init__(entity_id, position)
         self.entity_type = "drone"
         
@@ -70,7 +70,12 @@ class Drone(Entity):
             "hold_position"
         ]
         
-        self.current_mode = "random_search"  # Default mode
+        # Always default to random_search mode, but allow override if specified
+        initial_mode = kwargs.get("current_mode", "random_search")
+        if initial_mode in self.valid_modes:
+            self.current_mode = initial_mode
+        else:
+            self.current_mode = "random_search"  # Fallback to default if invalid mode provided
     
     def set_state_manager(self, state_manager) -> None:
         """Set reference to state manager for entity interactions."""

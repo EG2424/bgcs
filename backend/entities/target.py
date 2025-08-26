@@ -26,7 +26,7 @@ class Target(Entity):
     - Black "X": Destruction marker overlay
     """
     
-    def __init__(self, entity_id: Optional[str] = None, position: Optional[Vector3] = None):
+    def __init__(self, entity_id: Optional[str] = None, position: Optional[Vector3] = None, **kwargs):
         super().__init__(entity_id, position)
         self.entity_type = "target"
         

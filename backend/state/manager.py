@@ -161,16 +161,12 @@ class StateManager:
             return None
         
         entity_class = self.entity_types[entity_type]
-        entity = entity_class(entity_id, position)
+        entity = entity_class(entity_id, position, **kwargs)
         
-        # Set additional properties
+        # Set additional properties that weren't handled in constructor
         for key, value in kwargs.items():
-            if hasattr(entity, key):
+            if hasattr(entity, key) and getattr(entity, key) != value:
                 setattr(entity, key, value)
-                
-        # Ensure drones default to random_search mode if no mode specified
-        if entity_type == "drone" and "current_mode" not in kwargs:
-            entity.current_mode = "random_search"
         
         if self.add_entity(entity):
             return entity

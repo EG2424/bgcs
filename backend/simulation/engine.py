@@ -242,12 +242,8 @@ class SimulationEngine:
                         })
                         logger.debug(f"Drone {drone.id} detected target {target.id}")
                     
-                    # Update drone behavior if in hunting mode
-                    if isinstance(drone, Drone):
-                        if drone.current_mode == "random_search" and not drone.target_entity_id:
-                            drone.set_target_entity(target.id)
-                            drone.set_mode("follow_target")
-                            logger.debug(f"Drone {drone.id} now following target {target.id}")
+                    # Target detected but don't automatically change drone behavior
+                    # Drones will maintain their current mode and won't auto-switch to follow_target
     
     def _process_destroy_queue(self) -> None:
         """Process entity destruction requests."""
