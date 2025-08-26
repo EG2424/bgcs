@@ -653,7 +653,7 @@ class BGCSApp {
         
         // Close options menu when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.header-options')) {
+            if (!e.target.closest('.floating-options')) {
                 if (this.elements.optionsPanel) {
                     this.elements.optionsPanel.classList.remove('active');
                 }
