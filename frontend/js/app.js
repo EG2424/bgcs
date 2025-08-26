@@ -591,6 +591,7 @@ class BGCSApp {
             showWaypoints: document.getElementById('show-waypoints'),
             showWireframe: document.getElementById('show-wireframe'),
             showTerrain: document.getElementById('show-terrain'),
+            showHeightmapColors: document.getElementById('show-heightmap-colors'),
             
             // Entity controls
             entitySearch: document.getElementById('entity-search'),
@@ -705,6 +706,13 @@ class BGCSApp {
         if (this.elements.showTerrain) {
             this.elements.showTerrain.addEventListener('change', (e) => {
                 this.toggleTerrain(e.target.checked);
+            });
+        }
+        
+        // Heightmap colormap control
+        if (this.elements.showHeightmapColors) {
+            this.elements.showHeightmapColors.addEventListener('change', (e) => {
+                this.toggleHeightmapColors(e.target.checked);
             });
         }
         
@@ -1992,6 +2000,18 @@ class BGCSApp {
         if (this.renderer3D && this.renderer3D.terrain && this.renderer3D.terrain.terrainMesh) {
             this.renderer3D.terrain.terrainMesh.visible = visible;
             this.log(`Terrain ${visible ? 'shown' : 'hidden'}`, 'info');
+        } else {
+            this.log('Terrain not available', 'warn');
+        }
+    }
+    
+    /**
+     * Toggle heightmap colormap mode
+     */
+    toggleHeightmapColors(enabled) {
+        if (this.renderer3D && this.renderer3D.terrain) {
+            this.renderer3D.terrain.setColormapMode(enabled);
+            this.log(`Heightmap colors ${enabled ? 'enabled' : 'disabled'}`, 'info');
         } else {
             this.log('Terrain not available', 'warn');
         }
