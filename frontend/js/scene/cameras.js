@@ -24,7 +24,7 @@ class BGCSCameraManager {
         
         // Unified camera spherical coordinates
         this.spherical = {
-            radius: 50,
+            radius: 200, // Start much further out to see full 500x500 terrain
             phi: 0.01, // Start at top-down (nearly 0 degrees = looking down)
             theta: 0 // Horizontal angle
         };
@@ -59,7 +59,7 @@ class BGCSCameraManager {
             75, // Field of view
             this.aspect, // Aspect ratio
             0.1, // Near clipping plane
-            1000 // Far clipping plane
+            3000 // Far clipping plane
         );
         
         // Set initial position (top-down view)
@@ -179,7 +179,7 @@ class BGCSCameraManager {
     handleZoom(delta) {
         // Direct zoom change - no animation, just like pan and orbit
         this.spherical.radius += delta * this.zoomSensitivity;
-        this.spherical.radius = Math.max(5, Math.min(200, this.spherical.radius));
+        this.spherical.radius = Math.max(5, Math.min(1000, this.spherical.radius));
         this.updateCameraPosition();
     }
     
@@ -324,7 +324,7 @@ class BGCSCameraManager {
      */
     resetCameras() {
         this.cameraTarget = { x: 0, y: 0, z: 0 };
-        this.spherical.radius = 50;
+        this.spherical.radius = 200; // Same as initial default
         this.spherical.phi = this.topDownPhi;
         this.spherical.theta = 0;
         this.updateCameraPosition();

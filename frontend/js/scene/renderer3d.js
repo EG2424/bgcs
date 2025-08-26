@@ -9,7 +9,9 @@ class BGCS3DRenderer {
         this.scene = null;
         this.renderer = null;
         this.entities = new Map(); // Map<entityId, mesh>
-        this.ground = null;
+        
+        // Terrain system
+        this.terrain = null;
         
         // Animation frame tracking
         this.animationFrameId = null;
@@ -26,12 +28,12 @@ class BGCS3DRenderer {
     /**
      * Initialize Three.js scene, renderer, and basic setup
      */
-    init() {
+    async init() {
         try {
             this.createScene();
             this.createRenderer();
             this.createLighting();
-            this.createGround();
+            await this.loadTerrain(); // Only load 3D terrain
             this.setupEventListeners();
             
             return true;
@@ -140,74 +142,7 @@ class BGCS3DRenderer {
         // this.scene.add(lightHelper);
     }
     
-    /**
-     * Create ground plane
-     */
-    createGround() {
-        const groundGeometry = new THREE.PlaneGeometry(1000, 1000, 100, 100);
-        const groundMaterial = new THREE.MeshLambertMaterial({
-            color: 0x2a2a2a,
-            transparent: true,
-            opacity: 0.8
-        });
-        
-        this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        this.ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-        this.ground.position.y = 0;
-        this.ground.receiveShadow = true;
-        
-        this.scene.add(this.ground);
-        
-        // Create custom grid with consistent line thickness
-        this.createCustomGrid();
-    }
     
-    /**
-     * Create custom grid with consistent line thickness
-     */
-    createCustomGrid() {
-        const gridSize = 1000;
-        const divisions = 100;
-        const step = gridSize / divisions;
-        
-        // Create geometry for grid lines
-        const geometry = new THREE.BufferGeometry();
-        const vertices = [];
-        
-        // Main grid lines (every 10th line - more prominent)
-        const mainGridColor = new THREE.Color(0x555555);
-        // Sub grid lines (regular lines)
-        const subGridColor = new THREE.Color(0x333333);
-        
-        // Create vertical and horizontal lines
-        for (let i = 0; i <= divisions; i++) {
-            const pos = -gridSize / 2 + i * step;
-            
-            // Vertical lines
-            vertices.push(-gridSize / 2, 0.01, pos);
-            vertices.push(gridSize / 2, 0.01, pos);
-            
-            // Horizontal lines
-            vertices.push(pos, 0.01, -gridSize / 2);
-            vertices.push(pos, 0.01, gridSize / 2);
-        }
-        
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        
-        // Create material with consistent line width
-        const material = new THREE.LineBasicMaterial({
-            color: 0x444444,
-            opacity: 0.6,
-            transparent: true
-        });
-        
-        // Create line segments
-        const grid = new THREE.LineSegments(geometry, material);
-        this.scene.add(grid);
-        
-        // Store reference for potential updates
-        this.customGrid = grid;
-    }
     
     /**
      * Setup event listeners for canvas resize
@@ -373,16 +308,47 @@ class BGCS3DRenderer {
             return;
         }
         
-        // Set position with height adjustment to sit on ground properly
-        let adjustedY = position.y;
-        if (type === 'drone') {
-            // Drone cube is 1.5 units tall, so raise by half height to sit on ground
-            adjustedY = position.y + 0.75; 
-        } else if (type === 'target') {
-            // Target cube is 1.2 units tall, so raise by half height to sit on ground
-            adjustedY = position.y + 0.6; 
+        // Constrain position to terrain bounds
+        const bounds = this.terrain ? this.terrain.getBounds() : { minX: -250, maxX: 250, minZ: -250, maxZ: 250 };
+        const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, position.x));
+        const clampedZ = Math.max(bounds.minZ, Math.min(bounds.maxZ, position.z));
+        
+        // Get terrain height at the spawn position
+        const terrainHeight = this.getTerrainHeight(clampedX, clampedZ);
+        
+        // Debug height sampling for all spawns
+        console.log(`Spawn ${type} at (${clampedX.toFixed(1)}, ${clampedZ.toFixed(1)}) - terrain height: ${terrainHeight.toFixed(2)}`);
+        
+        // Debug height sampling
+        if (terrainHeight < 0) {
+            console.warn(`Negative terrain height detected: ${terrainHeight} at (${clampedX}, ${clampedZ})`);
         }
-        mesh.position.set(position.x, adjustedY, position.z);
+        
+        // Set position based on terrain height and entity type with better safety
+        // Note: terrainHeight is already the world Y coordinate after terrain mesh positioning
+        let adjustedY;
+        if (type === 'drone') {
+            // Drones hover above terrain surface
+            adjustedY = terrainHeight + 4.0; // hover 4m above actual terrain height
+        } else if (type === 'target') {
+            // Targets sit on terrain surface  
+            adjustedY = terrainHeight + 0.6; // sit on terrain with half mesh height offset
+        }
+        
+        console.log(`  Final Y position: ${adjustedY.toFixed(2)} (terrain: ${terrainHeight.toFixed(2)} + offset)`);
+        
+        // Get terrain normal for orientation (for targets)
+        let terrainNormal = null;
+        if (type === 'target') {
+            terrainNormal = this.getTerrainNormal(clampedX, clampedZ);
+        }
+        
+        mesh.position.set(clampedX, adjustedY, clampedZ);
+        
+        // Apply terrain orientation for ground vehicles
+        if (type === 'target' && terrainNormal) {
+            this.alignMeshToTerrain(mesh, terrainNormal);
+        }
         
         // Store entity data
         mesh.userData = {
@@ -428,19 +394,38 @@ class BGCS3DRenderer {
     updateEntityPosition(entityId, position) {
         const mesh = this.entities.get(entityId);
         if (mesh) {
-            // Apply same height adjustment as in addEntity
-            let adjustedY = position.y;
             const entityType = mesh.userData.type;
             
+            // Constrain position to terrain bounds
+            const bounds = this.terrain ? this.terrain.getBounds() : { minX: -250, maxX: 250, minZ: -250, maxZ: 250 };
+            const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, position.x));
+            const clampedZ = Math.max(bounds.minZ, Math.min(bounds.maxZ, position.z));
+            
+            // Get terrain height at the new position
+            const terrainHeight = this.getTerrainHeight(clampedX, clampedZ);
+            
+            // Apply terrain-following positioning 
+            let adjustedY;
             if (entityType === 'drone') {
-                // Drone cube is 1.5 units tall, so raise by half height to sit on ground
-                adjustedY = position.y + 0.75; 
+                // Drones hover above terrain surface
+                adjustedY = terrainHeight + 4.0; // hover 4m above actual terrain height
             } else if (entityType === 'target') {
-                // Target cube is 1.2 units tall, so raise by half height to sit on ground
-                adjustedY = position.y + 0.6; 
+                // Targets sit on terrain surface
+                adjustedY = terrainHeight + 0.6; // sit on terrain with half mesh height offset
             }
             
-            mesh.position.set(position.x, adjustedY, position.z);
+            // Get terrain normal for orientation (for targets)
+            let terrainNormal = null;
+            if (entityType === 'target') {
+                terrainNormal = this.getTerrainNormal(clampedX, clampedZ);
+            }
+            
+            mesh.position.set(clampedX, adjustedY, clampedZ);
+            
+            // Apply terrain orientation for ground vehicles
+            if (entityType === 'target' && terrainNormal) {
+                this.alignMeshToTerrain(mesh, terrainNormal);
+            }
         }
     }
     
@@ -471,6 +456,84 @@ class BGCS3DRenderer {
     }
     
     /**
+     * Load terrain system
+     */
+    async loadTerrain() {
+        try {
+            
+            // Create terrain system
+            this.terrain = new BGCSTerrain(this.scene);
+            
+            // Load terrain heightmap
+            const success = await this.terrain.loadTerrain();
+            
+            if (!success) {
+                this.terrain = null;
+            }
+            
+        } catch (error) {
+            this.terrain = null;
+        }
+    }
+    
+    /**
+     * Get terrain height at world position
+     */
+    getTerrainHeight(x, z) {
+        if (this.terrain && this.terrain.isInBounds(x, z)) {
+            return this.terrain.getHeightAt(x, z);
+        }
+        return 0; // Default ground level
+    }
+    
+    /**
+     * Check if position is within terrain bounds
+     */
+    isInTerrainBounds(x, z) {
+        return this.terrain ? this.terrain.isInBounds(x, z) : false;
+    }
+    
+    /**
+     * Get terrain normal vector at position for surface alignment
+     */
+    getTerrainNormal(x, z) {
+        if (!this.terrain || !this.terrain.isInBounds(x, z)) {
+            return new THREE.Vector3(0, 1, 0); // Default up vector
+        }
+        
+        // Sample nearby heights to calculate normal
+        const offset = 1.0; // 1m sampling distance
+        const heightC = this.getTerrainHeight(x, z);
+        const heightL = this.getTerrainHeight(x - offset, z);
+        const heightR = this.getTerrainHeight(x + offset, z);
+        const heightB = this.getTerrainHeight(x, z - offset);
+        const heightT = this.getTerrainHeight(x, z + offset);
+        
+        // Calculate surface normal using cross product
+        const dx = heightR - heightL;
+        const dz = heightT - heightB;
+        
+        const normal = new THREE.Vector3(-dx / (2 * offset), 1, -dz / (2 * offset));
+        normal.normalize();
+        
+        return normal;
+    }
+    
+    /**
+     * Align mesh to terrain surface normal
+     */
+    alignMeshToTerrain(mesh, normal) {
+        // Calculate rotation to align mesh with terrain normal
+        const up = new THREE.Vector3(0, 1, 0);
+        
+        // Create a quaternion rotation from up vector to terrain normal
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromUnitVectors(up, normal);
+        
+        mesh.setRotationFromQuaternion(quaternion);
+    }
+    
+    /**
      * Clear all entities from scene
      */
     clear() {
@@ -484,6 +547,12 @@ class BGCS3DRenderer {
     dispose() {
         this.stopRendering();
         this.clear();
+        
+        // Dispose terrain
+        if (this.terrain) {
+            this.terrain.dispose();
+            this.terrain = null;
+        }
         
         if (this.renderer) {
             this.renderer.dispose();

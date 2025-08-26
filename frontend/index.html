@@ -42,10 +42,17 @@
                             <span class="toggle-label">Waypoints</span>
                         </label>
                         
+                        
                         <label class="option-toggle">
-                            <input type="checkbox" id="show-grid" checked>
+                            <input type="checkbox" id="show-wireframe" checked>
                             <span class="toggle-slider"></span>
-                            <span class="toggle-label">Grid</span>
+                            <span class="toggle-label">Wireframe</span>
+                        </label>
+                        
+                        <label class="option-toggle">
+                            <input type="checkbox" id="show-terrain" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Terrain</span>
                         </label>
                     </div>
                 </div>
@@ -243,6 +250,7 @@
     <script src="/static/js/network/websocket.js"></script>
     <script src="/static/js/entities/manager.js"></script>
     <!-- 3D Scene -->
+    <script src="/static/js/scene/terrain.js"></script>
     <script src="/static/js/scene/renderer3d.js"></script>
     <script src="/static/js/scene/cameras.js"></script>
     <!-- Controls -->

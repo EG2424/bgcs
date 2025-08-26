@@ -56,7 +56,7 @@ class BGCSApp {
     async init() {
         try {
             this.setupCanvas();
-            this.setup3DScene();
+            await this.setup3DScene(); // Now async for terrain loading
             this.setupControls();
             this.setupNetworking();
             this.setupUIElements();
@@ -71,7 +71,7 @@ class BGCSApp {
             
             this.initialized = true;
             this.log('BGCS Ground Control Station initialized', 'info');
-            this.log('3D Scene Foundation loaded successfully', 'success');
+            this.log('3D Scene Foundation with terrain loaded successfully', 'success');
             
             return true;
         } catch (error) {
@@ -96,7 +96,7 @@ class BGCSApp {
     /**
      * Setup 3D scene components
      */
-    setup3DScene() {
+    async setup3DScene() {
         try {
             // Initialize camera manager
             this.cameraManager = new BGCSCameraManager(this.canvas);
@@ -105,9 +105,10 @@ class BGCSApp {
             }
             window.bgcsCameras = this.cameraManager; // Make globally accessible
             
-            // Initialize 3D renderer
+            // Initialize 3D renderer (now async for terrain loading)
             this.renderer3D = new BGCS3DRenderer(this.canvas);
-            if (!this.renderer3D.init()) {
+            const initSuccess = await this.renderer3D.init();
+            if (!initSuccess) {
                 throw new Error('Failed to initialize 3D renderer');
             }
             window.bgcs3D = this.renderer3D; // Make globally accessible
@@ -115,7 +116,7 @@ class BGCSApp {
             // Add some demo entities for testing
             this.addDemoEntities();
             
-            this.log('3D Scene Foundation initialized', 'success');
+            this.log('3D Scene Foundation with terrain initialized', 'success');
         } catch (error) {
             console.error('3D Scene setup failed:', error);
             this.log(`3D Scene setup failed: ${error.message}`, 'error');
@@ -588,7 +589,8 @@ class BGCSApp {
             scaleValue: document.getElementById('scale-value'),
             showDetectionRanges: document.getElementById('show-detection-ranges'),
             showWaypoints: document.getElementById('show-waypoints'),
-            showGrid: document.getElementById('show-grid'),
+            showWireframe: document.getElementById('show-wireframe'),
+            showTerrain: document.getElementById('show-terrain'),
             
             // Entity controls
             entitySearch: document.getElementById('entity-search'),
@@ -689,6 +691,20 @@ class BGCSApp {
                         speed: this.simulationSpeed
                     });
                 }
+            });
+        }
+        
+        
+        // Wireframe mode control
+        if (this.elements.showWireframe) {
+            this.elements.showWireframe.addEventListener('change', (e) => {
+                this.toggleWireframe(e.target.checked);
+            });
+        }
+        
+        if (this.elements.showTerrain) {
+            this.elements.showTerrain.addEventListener('change', (e) => {
+                this.toggleTerrain(e.target.checked);
             });
         }
         
@@ -924,11 +940,6 @@ class BGCSApp {
         this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw grid if enabled
-        const showGridCheckbox = this.elements.showGrid || document.getElementById('show-grid');
-        if (showGridCheckbox && showGridCheckbox.checked) {
-            this.drawGrid();
-        }
         
         // Draw placeholder text
         this.ctx.fillStyle = '#666';
@@ -954,34 +965,6 @@ class BGCSApp {
         );
     }
     
-    /**
-     * Draw grid overlay
-     */
-    drawGrid() {
-        // Skip 2D drawing if 3D renderer is active  
-        if (this.renderer3D) return;
-        if (!this.ctx) return;
-        
-        const gridSize = 50;
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.lineWidth = 1;
-        
-        // Vertical lines
-        for (let x = 0; x < this.canvas.width; x += gridSize) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
-            this.ctx.stroke();
-        }
-        
-        // Horizontal lines
-        for (let y = 0; y < this.canvas.height; y += gridSize) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
-            this.ctx.stroke();
-        }
-    }
     
     /**
      * Start UI update loop
@@ -1986,6 +1969,31 @@ class BGCSApp {
                 }
                 toggleButton.title = 'View Options';
             }
+        }
+    }
+    
+    
+    /**
+     * Toggle terrain wireframe mode
+     */
+    toggleWireframe(enabled) {
+        if (this.renderer3D && this.renderer3D.terrain) {
+            this.renderer3D.terrain.setWireframeMode(enabled);
+            this.log(`Terrain wireframe ${enabled ? 'enabled' : 'disabled'}`, 'info');
+        } else {
+            this.log('Terrain not available', 'warn');
+        }
+    }
+    
+    /**
+     * Toggle terrain visibility
+     */
+    toggleTerrain(visible) {
+        if (this.renderer3D && this.renderer3D.terrain && this.renderer3D.terrain.terrainMesh) {
+            this.renderer3D.terrain.terrainMesh.visible = visible;
+            this.log(`Terrain ${visible ? 'shown' : 'hidden'}`, 'info');
+        } else {
+            this.log('Terrain not available', 'warn');
         }
     }
     
