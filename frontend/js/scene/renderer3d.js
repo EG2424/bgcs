@@ -324,8 +324,8 @@ class BGCS3DRenderer {
      * Create a drone mesh - small cube
      */
     createDroneMesh() {
-        // Create a small cube for UAV (made smaller so 1.0 scale looks good)
-        const geometry = new THREE.BoxGeometry(0.75, 0.75, 0.75);
+        // Create drone cube (sized for 1.0 scale slider = 2x original size)
+        const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
         const material = new THREE.MeshBasicMaterial({
             color: 0x00FF00, // Bright green
             transparent: false,
@@ -341,8 +341,8 @@ class BGCS3DRenderer {
      * Create a target mesh - small cube
      */
     createTargetMesh() {
-        // Create a small cube for targets (made smaller so 1.0 scale looks good)
-        const geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+        // Create target cube (sized for 1.0 scale slider = 2x original size)
+        const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
         const material = new THREE.MeshBasicMaterial({
             color: 0xFF0000, // Bright red
             transparent: false,
@@ -376,11 +376,11 @@ class BGCS3DRenderer {
         // Set position with height adjustment to sit on ground properly
         let adjustedY = position.y;
         if (type === 'drone') {
-            // Drone cube is 0.75 units tall, so raise by half height to sit on ground
-            adjustedY = position.y + 0.375; 
+            // Drone cube is 1.5 units tall, so raise by half height to sit on ground
+            adjustedY = position.y + 0.75; 
         } else if (type === 'target') {
-            // Target cube is 0.6 units tall, so raise by half height to sit on ground
-            adjustedY = position.y + 0.3; 
+            // Target cube is 1.2 units tall, so raise by half height to sit on ground
+            adjustedY = position.y + 0.6; 
         }
         mesh.position.set(position.x, adjustedY, position.z);
         
@@ -433,11 +433,11 @@ class BGCS3DRenderer {
             const entityType = mesh.userData.type;
             
             if (entityType === 'drone') {
-                // Drone cube is 0.75 units tall, so raise by half height to sit on ground
-                adjustedY = position.y + 0.375; 
+                // Drone cube is 1.5 units tall, so raise by half height to sit on ground
+                adjustedY = position.y + 0.75; 
             } else if (entityType === 'target') {
-                // Target cube is 0.6 units tall, so raise by half height to sit on ground
-                adjustedY = position.y + 0.3; 
+                // Target cube is 1.2 units tall, so raise by half height to sit on ground
+                adjustedY = position.y + 0.6; 
             }
             
             mesh.position.set(position.x, adjustedY, position.z);
