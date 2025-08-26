@@ -37,6 +37,10 @@ class BGCSApp {
         this.lastSelectedEntityId = null;
         this.lastSelectedGroupId = null;
         
+        // Tab cycling through entities
+        this.tabCycleIndex = -1;
+        this.tabCycleEntityList = [];
+        
         // Console
         this.console = {
             maxEntries: 1000,
@@ -357,6 +361,8 @@ class BGCSApp {
             mode: entity.currentMode || 'idle'
         });
         
+        // Update tab cycle list
+        this.updateTabCycleEntityList();
     }
     
     /**
@@ -399,6 +405,8 @@ class BGCSApp {
         // Remove from groups
         this.cleanupEmptyGroups(entity.id);
         
+        // Update tab cycle list
+        this.updateTabCycleEntityList();
     }
     
     
@@ -500,6 +508,7 @@ class BGCSApp {
         this.log('Added 3 demo entities to scene (offline mode)', 'info');
         this.log('Selection: Click to select, Shift+click for multi-select, Drag entities around', 'info');
         this.log('Camera Controls: Left drag = orbit(3D)/pan(2D), Middle drag = pan, Wheel = zoom, Keys 1/2 = switch view', 'info');
+        this.log('Keyboard: Tab = cycle entities, Shift+Tab = reverse cycle, Del = delete, H = focus', 'info');
         this.log('Console Commands: bgcsApp.spawnMultiple("drone", 5) or bgcsApp.spawnMultiple("target", 3)', 'info');
     }
     
@@ -511,6 +520,9 @@ class BGCSApp {
             this.log('Cannot spawn: Not connected to backend server', 'error');
             return;
         }
+        
+        // Clear button focus to prevent highlighting issues
+        this.clearButtonFocus();
         
         try {
             // Generate unique ID
@@ -891,7 +903,110 @@ class BGCSApp {
                     this.deleteSelectedEntities();
                 }
                 break;
+            case 'Tab':
+                if (!event.target.matches('input')) {
+                    event.preventDefault();
+                    this.cycleEntities(event.shiftKey); // Shift+Tab for reverse cycling
+                }
+                break;
         }
+    }
+    
+    /**
+     * Cycle through entities with Tab key
+     */
+    cycleEntities(reverse = false) {
+        // Update entity list from current state
+        this.updateTabCycleEntityList();
+        
+        if (this.tabCycleEntityList.length === 0) {
+            this.log('No entities available to cycle through', 'info');
+            return;
+        }
+        
+        // Move to next/previous entity
+        if (reverse) {
+            this.tabCycleIndex--;
+            if (this.tabCycleIndex < 0) {
+                this.tabCycleIndex = this.tabCycleEntityList.length - 1; // Wrap to end
+            }
+        } else {
+            this.tabCycleIndex++;
+            if (this.tabCycleIndex >= this.tabCycleEntityList.length) {
+                this.tabCycleIndex = 0; // Wrap to beginning
+            }
+        }
+        
+        // Get current entity ID
+        const entityId = this.tabCycleEntityList[this.tabCycleIndex];
+        
+        // Select the entity
+        if (this.uiControls) {
+            this.uiControls.clearSelection();
+            this.uiControls.selectEntity(entityId);
+            this.uiControls.focusOnSelected();
+            
+            // Update visual selection in menus
+            this.updateAssetMenuSelection();
+            this.updateGroupMenuSelection();
+            
+            // Update control panel
+            this.updateControlPanelModes();
+            
+            // Log the action
+            const entityType = this.getEntityType(entityId);
+            this.log(`Tabbed to ${entityType} "${entityId}" (${this.tabCycleIndex + 1}/${this.tabCycleEntityList.length})`, 'info');
+        }
+    }
+    
+    /**
+     * Update the list of entities for tab cycling
+     */
+    updateTabCycleEntityList() {
+        this.tabCycleEntityList = [];
+        
+        if (this.renderer3D && this.renderer3D.entities) {
+            // Get all entity IDs from the 3D renderer
+            this.tabCycleEntityList = Array.from(this.renderer3D.entities.keys());
+            
+            // Sort entities by type then by ID for consistent ordering
+            this.tabCycleEntityList.sort((a, b) => {
+                const typeA = this.getEntityType(a);
+                const typeB = this.getEntityType(b);
+                
+                if (typeA !== typeB) {
+                    // Sort drones first, then targets
+                    if (typeA === 'drone') return -1;
+                    if (typeB === 'drone') return 1;
+                }
+                
+                // Same type, sort by ID
+                return a.localeCompare(b);
+            });
+        }
+        
+        // Reset index if current index is out of bounds
+        if (this.tabCycleIndex >= this.tabCycleEntityList.length) {
+            this.tabCycleIndex = -1;
+        }
+    }
+    
+    /**
+     * Get entity type from entity ID (helper method)
+     */
+    getEntityType(entityId) {
+        if (entityId.includes('drone')) return 'drone';
+        if (entityId.includes('target')) return 'target';
+        
+        // Try to get from entity controls if available
+        if (this.entityControls && this.entityControls.getEntity) {
+            const entity = this.entityControls.getEntity(entityId);
+            if (entity && entity.type) {
+                return entity.type;
+            }
+        }
+        
+        return 'entity'; // fallback
     }
     
     /**
@@ -1540,6 +1655,22 @@ class BGCSApp {
     }
     
     /**
+     * Clear focus from all buttons to prevent unwanted highlighting
+     */
+    clearButtonFocus() {
+        // Blur any currently focused button
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'BUTTON' || activeElement.classList.contains('btn-icon'))) {
+            activeElement.blur();
+        }
+        
+        // Focus on canvas instead to maintain keyboard navigation
+        if (this.canvas) {
+            this.canvas.focus();
+        }
+    }
+    
+    /**
      * Delete selected entities
      */
     async deleteSelectedEntities() {
@@ -1559,6 +1690,9 @@ class BGCSApp {
             this.log('No entities selected to delete', 'warning');
             return;
         }
+        
+        // Clear any focused buttons to prevent focus highlighting issues
+        this.clearButtonFocus();
         
         // Check if the selected entities form a complete group
         const groupToDelete = this.findGroupByEntities(selectedEntities);

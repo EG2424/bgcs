@@ -615,6 +615,10 @@ body {
     display: block;
 }
 
+#main-canvas:focus {
+    outline: none; /* Hide focus outline since 3D scene doesn't need visual focus indicator */
+}
+
 /* Canvas Overlays for Floating UI Elements */
 .canvas-overlays {
     position: absolute;
