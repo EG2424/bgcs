@@ -594,7 +594,6 @@ class BGCSApp {
             entitySearch: document.getElementById('entity-search'),
             entityList: document.getElementById('entity-list'),
             groupsList: document.getElementById('groups-list'),
-            refreshEntities: document.getElementById('refresh-entities'),
             collapseEntities: document.getElementById('collapse-entities'),
             
             // Options menu controls replaced canvas controls
@@ -703,9 +702,6 @@ class BGCSApp {
         }
         
         // Entity list controls
-        if (this.elements.refreshEntities) {
-            this.elements.refreshEntities.addEventListener('click', () => this.refreshEntityList());
-        }
         
         if (this.elements.collapseEntities) {
             this.elements.collapseEntities.addEventListener('click', () => this.toggleEntityListCollapse());
@@ -1643,28 +1639,6 @@ class BGCSApp {
         this.log(`Deleted entity ${entityId}`, 'info');
     }
     
-    /**
-     * Refresh entity list
-     */
-    refreshEntityList() {
-        this.log('Refreshing entity list...', 'info');
-        
-        const entityList = this.elements.entityList;
-        if (!entityList) return;
-        
-        // Clear existing list
-        entityList.innerHTML = '';
-        
-        // Repopulate from entity controls data
-        if (this.entityControls) {
-            const allEntities = this.entityControls.getAllEntities();
-            allEntities.forEach(entityData => {
-                this.addEntityToList(entityData);
-            });
-            
-            this.log(`Refreshed ${allEntities.length} entities in list`, 'info');
-        }
-    }
     
     /**
      * Filter entity list based on search term
