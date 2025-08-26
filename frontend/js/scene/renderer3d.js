@@ -316,26 +316,21 @@ class BGCS3DRenderer {
         // Get terrain height at the spawn position
         const terrainHeight = this.getTerrainHeight(clampedX, clampedZ);
         
-        // Debug height sampling for all spawns
-        console.log(`Spawn ${type} at (${clampedX.toFixed(1)}, ${clampedZ.toFixed(1)}) - terrain height: ${terrainHeight.toFixed(2)}`);
-        
-        // Debug height sampling
+        // Validate terrain height
         if (terrainHeight < 0) {
             console.warn(`Negative terrain height detected: ${terrainHeight} at (${clampedX}, ${clampedZ})`);
         }
         
-        // Set position based on terrain height and entity type with better safety
-        // Note: terrainHeight is already the world Y coordinate after terrain mesh positioning
+        // Set position based on entity type - use backend Y position for drones, terrain for targets
         let adjustedY;
         if (type === 'drone') {
-            // Drones hover above terrain surface
-            adjustedY = terrainHeight + 4.0; // hover 4m above actual terrain height
+            // Use the Y position from backend for drones but enforce minimum altitude
+            adjustedY = Math.max(position.y, terrainHeight + 4.0);
         } else if (type === 'target') {
             // Targets sit on terrain surface  
             adjustedY = terrainHeight + 0.6; // sit on terrain with half mesh height offset
         }
         
-        console.log(`  Final Y position: ${adjustedY.toFixed(2)} (terrain: ${terrainHeight.toFixed(2)} + offset)`);
         
         // Get terrain normal for orientation (for targets)
         let terrainNormal = null;
@@ -404,11 +399,11 @@ class BGCS3DRenderer {
             // Get terrain height at the new position
             const terrainHeight = this.getTerrainHeight(clampedX, clampedZ);
             
-            // Apply terrain-following positioning 
+            // Apply positioning based on entity type
             let adjustedY;
             if (entityType === 'drone') {
-                // Drones hover above terrain surface
-                adjustedY = terrainHeight + 4.0; // hover 4m above actual terrain height
+                // Use backend Y position for drones but enforce minimum altitude
+                adjustedY = Math.max(position.y, terrainHeight + 4.0);
             } else if (entityType === 'target') {
                 // Targets sit on terrain surface
                 adjustedY = terrainHeight + 0.6; // sit on terrain with half mesh height offset

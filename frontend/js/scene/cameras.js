@@ -32,7 +32,6 @@ class BGCSCameraManager {
         // Top-down reference (for Space key reset)
         this.topDownPhi = 0.01; // Small value instead of 0 to avoid singularity
         
-        console.log('BGCSCameraManager initialized (unified system)');
     }
     
     /**
@@ -43,7 +42,6 @@ class BGCSCameraManager {
             this.createCamera();
             this.updateCameraPosition();
             
-            console.log('Unified camera system initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize camera system:', error);
@@ -65,7 +63,6 @@ class BGCSCameraManager {
         // Set initial position (top-down view)
         this.updateCameraPosition();
         
-        console.log('Unified perspective camera created');
     }
     
     /**
@@ -134,12 +131,6 @@ class BGCSCameraManager {
             const rightMovement = right.clone().multiplyScalar(-deltaX * panSpeed); // Invert X
             const forwardMovement = forward.clone().multiplyScalar(deltaY * panSpeed); // Invert Y
             
-            // Debug logging
-            if (deltaX !== 0 || deltaY !== 0) {
-                console.log(`Top-down pan: deltaX=${deltaX}, deltaY=${deltaY}, theta=${(this.spherical.theta * 180/Math.PI).toFixed(1)}°`);
-                console.log(`Right vector:`, right.toArray().map(x => x.toFixed(2)));
-                console.log(`Forward vector:`, forward.toArray().map(x => x.toFixed(2)));
-            }
             
             // Apply movement to plain JS object (not Vector3)
             this.cameraTarget.x += rightMovement.x + forwardMovement.x;
@@ -278,7 +269,6 @@ class BGCSCameraManager {
             this.camera.updateProjectionMatrix();
         }
         
-        console.log(`Camera updated for resize: ${width}x${height}`);
     }
     
     /**
@@ -316,7 +306,6 @@ class BGCSCameraManager {
             this.updateCameraPosition();
         }
         
-        console.log(`Camera focused on position:`, position);
     }
     
     /**
@@ -329,7 +318,6 @@ class BGCSCameraManager {
         this.spherical.theta = 0;
         this.updateCameraPosition();
         
-        console.log('Camera reset to default top-down position');
     }
     
     /**

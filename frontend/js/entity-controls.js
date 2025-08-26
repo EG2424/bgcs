@@ -32,7 +32,6 @@ class BGCSEntityControls {
         // Command queue for validation
         this.commandQueue = [];
         
-        console.log('BGCSEntityControls initialized');
     }
     
     /**
@@ -44,7 +43,6 @@ class BGCSEntityControls {
             this.setupCommandButtons();
             this.setupWaypointSystem();
             
-            console.log('Entity Controls initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize entity controls:', error);
@@ -69,7 +67,6 @@ class BGCSEntityControls {
         // Create dynamic mode selector for selected entities
         this.createModeSelector();
         
-        console.log('Mode controls setup complete');
     }
     
     /**
@@ -110,7 +107,6 @@ class BGCSEntityControls {
             });
         }
         
-        console.log('Command buttons setup complete');
     }
     
     /**
@@ -120,7 +116,6 @@ class BGCSEntityControls {
         // Waypoint placement will be handled through UI controls
         // This sets up the waypoint management system
         
-        console.log('Waypoint system setup complete');
     }
     
     /**
@@ -162,7 +157,6 @@ class BGCSEntityControls {
         this.entities.set(entityId, entityData);
         this.waypoints.set(entityId, []);
         
-        console.log(`Created entity data for ${entityId}:`, entityData);
         return entityData;
     }
     
@@ -290,7 +284,6 @@ class BGCSEntityControls {
         // Send command to backend (TODO: implement WebSocket client)
         this.queueCommand('set_mode', { entityId, mode });
         
-        console.log(`Set entity ${entityId} mode to ${mode}`);
         return true;
     }
     
@@ -330,7 +323,6 @@ class BGCSEntityControls {
             }
         }
         
-        console.log(`Added waypoint to ${entityId}:`, position);
         return true;
     }
     
@@ -344,7 +336,6 @@ class BGCSEntityControls {
         entity.path.splice(waypointIndex, 1);
         this.updateWaypointVisual(entityId);
         
-        console.log(`Removed waypoint ${waypointIndex} from ${entityId}`);
         return true;
     }
     
@@ -358,7 +349,6 @@ class BGCSEntityControls {
         entity.path = [];
         this.updateWaypointVisual(entityId);
         
-        console.log(`Cleared all waypoints for ${entityId}`);
         return true;
     }
     
@@ -396,7 +386,6 @@ class BGCSEntityControls {
             this.setEntityMode(entityId, 'follow_target');
         }
         
-        console.log(`Set ${entityId} to follow target ${targetId}`);
         return true;
     }
     
@@ -416,7 +405,6 @@ class BGCSEntityControls {
             this.setEntityMode(entityId, 'follow_teammate');
         }
         
-        console.log(`Set ${entityId} to follow teammate ${teammateId}`);
         return true;
     }
     
@@ -459,7 +447,6 @@ class BGCSEntityControls {
         const entity = this.entities.get(entityId);
         if (!entity) return;
         
-        console.log(`Updated waypoint visual for ${entityId}, waypoints:`, entity.path.length);
     }
     
     /**
@@ -476,7 +463,6 @@ class BGCSEntityControls {
         this.commandQueue.push(cmd);
         
         // TODO: Send to backend via WebSocket
-        console.log('Queued command:', cmd);
     }
     
     /**
@@ -538,7 +524,6 @@ class BGCSEntityControls {
         // Queue delete command
         this.queueCommand('delete_entity', { entityId });
         
-        console.log(`Deleted entity ${entityId}`);
     }
     
     /**

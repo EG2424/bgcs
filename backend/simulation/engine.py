@@ -329,7 +329,7 @@ class SimulationEngine:
             angle = (2 * 3.14159 * i) / num_drones
             radius = 50 + random.uniform(-20, 20)  # Much closer to center (30-70m radius)
             x = radius * math.cos(angle)  # East-West
-            y = random.uniform(10, 30)  # Altitude (10-30m above ground)
+            y = random.uniform(50, 80)  # Altitude (50-80m above ground)
             z = radius * math.sin(angle)  # North-South
             
             self.spawn_entity(

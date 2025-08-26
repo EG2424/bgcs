@@ -178,7 +178,12 @@ class Entity:
         entity.detected = data.get("detected", False)
         entity.selected = data.get("selected", False)
         entity.destroyed = data.get("destroyed", False)
-        entity.target_position = Vector3(**data.get("target_position", {}))
+        target_pos_data = data.get("target_position", {})
+        if not target_pos_data:
+            # Default to current position to prevent ground-level reset
+            entity.target_position = Vector3(entity.position.x, entity.position.y, entity.position.z)
+        else:
+            entity.target_position = Vector3(**target_pos_data)
         entity.current_mode = data.get("current_mode", "idle")
         entity.created_time = data.get("created_time", time.time())
         entity.last_update_time = data.get("last_update_time", time.time())

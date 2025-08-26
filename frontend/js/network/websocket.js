@@ -108,8 +108,8 @@ class BGCSWebSocketClient {
                         .replace(/:\s*NaN/g, ': 0');
                     
                     const message = JSON.parse(cleanedData);
-                    // Only log non-state-update messages to reduce console spam
-                    if (message.type !== 'state_update') {
+                    // Only log important messages to reduce console spam
+                    if (message.type === 'connection_established' || message.type === 'error') {
                         console.log('📨 WebSocket message received:', message.type, message);
                     }
                     this.handleMessage(message);

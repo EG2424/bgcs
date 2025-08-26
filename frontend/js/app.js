@@ -545,8 +545,8 @@ class BGCSApp {
     getRandomSpawnPosition() {
         // Spawn in a reasonable area around the origin
         const range = 30; // -30 to +30 in X and Z
-        const minHeight = 2; // Reasonable height for 3D spheres
-        const maxHeight = 8; // Good altitude range for UAVs
+        const minHeight = 50; // Higher altitude for better visibility
+        const maxHeight = 80; // Good altitude range for UAVs
         
         return {
             x: (Math.random() - 0.5) * 2 * range,

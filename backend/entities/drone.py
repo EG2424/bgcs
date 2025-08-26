@@ -60,6 +60,10 @@ class Drone(Entity):
         self.random_target_interval: float = 10.0  # seconds
         self.engagement_range: float = 10.0  # meters for kamikaze
         
+        # Set initial target position to spawn position to prevent sinking
+        if position:
+            self.target_position = Vector3(position.x, position.y, position.z)
+        
         # Valid behavior modes
         self.valid_modes = [
             "random_search",
@@ -107,6 +111,9 @@ class Drone(Entity):
             self._update_kamikaze(delta_time)
         elif self.current_mode == "hold_position":
             self._update_hold_position(delta_time)
+        else:
+            # Default behavior for idle or unknown modes - hold position
+            self._update_hold_position(delta_time)
     
     def _update_random_search(self, delta_time: float) -> None:
         """Random Search: Patrol random waypoints."""
@@ -122,9 +129,14 @@ class Drone(Entity):
             angle = random.uniform(0, 2 * math.pi)
             distance = random.uniform(0, self.patrol_area_size)
             
+            # Maintain current altitude range (±10m from current altitude)
+            current_altitude = max(50, self.position.y)  # Minimum 50m
+            altitude_variation = random.uniform(-10, 10)
+            target_altitude = max(50, min(100, current_altitude + altitude_variation))
+            
             self.target_position = Vector3(
                 center.x + distance * math.cos(angle),  # East-West
-                random.uniform(5, 20),  # Altitude (Y is up/down)
+                target_altitude,  # Maintain altitude with small variation
                 center.z + distance * math.sin(angle)   # North-South
             )
             
@@ -148,23 +160,27 @@ class Drone(Entity):
                 distance = direction.magnitude()
                 
                 if distance > self.follow_distance + 10:
-                    # Too far, move closer
-                    self.target_position = target_entity.position
+                    # Too far, move closer (maintain flight altitude)
+                    self.target_position = Vector3(target_entity.position.x, 60, target_entity.position.z)
                 elif distance < self.follow_distance - 10:
                     # Too close, move away
                     if direction.magnitude() > 0:
                         retreat_direction = direction.normalize() * -1
-                        self.target_position = self.position + (retreat_direction * self.follow_distance)
+                        retreat_pos = self.position + (retreat_direction * self.follow_distance)
+                        # Maintain flight altitude during retreat
+                        self.target_position = Vector3(retreat_pos.x, max(60, self.position.y), retreat_pos.z)
                 else:
-                    # Good distance, orbit around target
+                    # Good distance, orbit around target (maintain flight altitude)
                     import math
                     orbit_angle = self.last_update_time * 0.5  # Slow orbit
                     orbit_offset = Vector3(
                         self.follow_distance * math.cos(orbit_angle),
-                        self.follow_distance * math.sin(orbit_angle),
-                        0
+                        0,  # No vertical offset
+                        self.follow_distance * math.sin(orbit_angle)
                     )
-                    self.target_position = target_entity.position + orbit_offset
+                    # Orbit at flight altitude above target
+                    target_at_altitude = Vector3(target_entity.position.x, 60, target_entity.position.z)
+                    self.target_position = target_at_altitude + orbit_offset
             else:
                 # Target doesn't exist or is destroyed - stay in follow_target mode
                 # Don't automatically switch modes - wait for user to assign new target or change mode
@@ -197,9 +213,11 @@ class Drone(Entity):
                         formation_offset.x * sin_h + formation_offset.y * cos_h,
                         formation_offset.z
                     )
-                    self.target_position = teammate.position + rotated_offset
+                    formation_pos = teammate.position + rotated_offset
+                    self.target_position = Vector3(formation_pos.x, max(60, teammate.position.y, self.position.y), formation_pos.z)
                 else:
-                    self.target_position = teammate.position + formation_offset
+                    formation_pos = teammate.position + formation_offset
+                    self.target_position = Vector3(formation_pos.x, max(60, teammate.position.y, self.position.y), formation_pos.z)
             else:
                 # Teammate doesn't exist or is destroyed - stay in follow_teammate mode
                 # Don't automatically switch modes - wait for user to assign new teammate or change mode
@@ -246,7 +264,8 @@ class Drone(Entity):
                 
                 if nearest_target:
                     self.set_target_entity(nearest_target.id)
-                    self.target_position = nearest_target.position
+                    # Hunt targets from altitude (maintain flight altitude)
+                    self.target_position = Vector3(nearest_target.position.x, max(60, self.position.y), nearest_target.position.z)
                 else:
                     # No targets in range, patrol randomly
                     self._update_random_search(delta_time)
@@ -256,7 +275,8 @@ class Drone(Entity):
             if self._state_manager:
                 target_entity = self._state_manager.get_entity(self.target_entity_id)
                 if target_entity and not target_entity.destroyed:
-                    self.target_position = target_entity.position
+                    # Attack from above (maintain flight altitude)
+                    self.target_position = Vector3(target_entity.position.x, 60, target_entity.position.z)
                     
                     # Check if close enough to engage
                     distance_to_target = self.distance_to(target_entity)
@@ -290,6 +310,7 @@ class Drone(Entity):
         direction = self.target_position - self.position
         distance = direction.magnitude()
         
+        
         if distance < self.approach_threshold:
             # Close enough, reduce speed
             self.velocity = self.velocity * 0.8
@@ -316,12 +337,12 @@ class Drone(Entity):
             else:
                 self.heading = target_heading
             
-            # Calculate velocity based on heading
+            # Calculate velocity in 3D space
             speed = min(self.max_speed, distance * 0.5)  # Slow down when close, cap at max_speed
             self.velocity = Vector3(
-                speed * math.cos(self.heading),
-                speed * math.sin(self.heading),
-                desired_direction.z * speed * 0.5  # Slower vertical movement
+                desired_direction.x * speed,
+                desired_direction.y * speed * 0.8,  # Slightly slower vertical movement
+                desired_direction.z * speed
             )
     
     def _is_at_target(self) -> bool:
