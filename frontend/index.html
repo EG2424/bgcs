@@ -10,101 +10,69 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-left">
-            <div class="logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                </svg>
-                <span>BGCS</span>
-            </div>
-        </div>
+    <!-- Floating Logo -->
+    <div class="floating-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>BGCS</span>
+    </div>
+
+    <!-- Floating Options -->
+    <div class="floating-options">
+        <button class="options-toggle" id="options-toggle" title="Options">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            </svg>
+        </button>
         
-        <div class="header-center">
-            <div class="mission-status">
-                <div class="status-indicator" id="connection-status"></div>
-                <span id="mission-title">UAV Ground Control Station</span>
-            </div>
-        </div>
-        
-        <div class="header-right">
-            <!-- Spawn Controls -->
-            <div class="header-spawn-controls">
-                <button class="header-spawn-btn" id="spawn-drone">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    </svg>
-                    Drone
-                </button>
-                <button class="header-spawn-btn" id="spawn-target">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    Target
-                </button>
-            </div>
-            
-            <!-- Options Menu -->
-            <div class="header-options">
-                <button class="options-toggle" id="options-toggle" title="Options">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
+        <!-- Options Panel -->
+        <div class="options-panel" id="options-panel">
+            <div class="options-content">
+                <div class="option-section">
+                    <label class="option-label">Display</label>
+                    <div class="option-toggles">
+                        <label class="option-toggle">
+                            <input type="checkbox" id="show-detection-ranges">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Detection</span>
+                        </label>
+                        
+                        <label class="option-toggle">
+                            <input type="checkbox" id="show-waypoints" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Waypoints</span>
+                        </label>
+                        
+                        <label class="option-toggle">
+                            <input type="checkbox" id="show-grid" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Grid</span>
+                        </label>
+                    </div>
+                </div>
                 
-                <!-- Options Panel -->
-                <div class="options-panel" id="options-panel">
-                    <div class="options-content">
-                        <div class="option-section">
-                            <label class="option-label">Display</label>
-                            <div class="option-toggles">
-                                <label class="option-toggle">
-                                    <input type="checkbox" id="show-detection-ranges">
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-label">Detection</span>
-                                </label>
-                                
-                                <label class="option-toggle">
-                                    <input type="checkbox" id="show-waypoints" checked>
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-label">Waypoints</span>
-                                </label>
-                                
-                                <label class="option-toggle">
-                                    <input type="checkbox" id="show-grid" checked>
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-label">Grid</span>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="option-section">
-                            <label class="option-label">Scale</label>
-                            <div class="option-control">
-                                <input type="range" id="entity-scale" min="0.2" max="3.0" step="0.1" value="1.0" class="range-slider">
-                                <span class="option-value" id="scale-value">1.0x</span>
-                            </div>
-                        </div>
-                        
-                        <div class="option-section">
-                            <label class="option-label">Simulation Speed</label>
-                            <div class="option-control">
-                                <input type="range" id="simulation-speed" min="0.1" max="5.0" step="0.1" value="1.0" class="range-slider">
-                                <span class="option-value" id="speed-value">1.0x</span>
-                            </div>
-                        </div>
+                <div class="option-section">
+                    <label class="option-label">Scale</label>
+                    <div class="option-control">
+                        <input type="range" id="entity-scale" min="0.2" max="3.0" step="0.1" value="1.0" class="range-slider">
+                        <span class="option-value" id="scale-value">1.0x</span>
+                    </div>
+                </div>
+                
+                <div class="option-section">
+                    <label class="option-label">Simulation Speed</label>
+                    <div class="option-control">
+                        <input type="range" id="simulation-speed" min="0.1" max="5.0" step="0.1" value="1.0" class="range-slider">
+                        <span class="option-value" id="speed-value">1.0x</span>
                     </div>
                 </div>
             </div>
         </div>
-    </header>
+    </div>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -119,6 +87,20 @@
                     </div>
                 </div>
                 <div class="sidebar-controls">
+                    <!-- Spawn Controls -->
+                    <button class="btn-icon" id="spawn-drone" title="Spawn Drone">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" id="spawn-target" title="Spawn Target">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
                     <button class="btn-icon" id="collapse-entities" title="Collapse All">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
