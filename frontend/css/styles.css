@@ -123,21 +123,18 @@ body {
     left: var(--padding-xl);
     display: flex;
     align-items: center;
-    gap: var(--padding-xs);
-    background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle));
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: transparent;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    padding: var(--padding-xs) var(--padding-sm);
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 14px;
+    padding: var(--padding-sm) var(--padding-md);
     z-index: 200;
     transition: all var(--transition-fast);
 }
 
-.floating-logo svg {
-    color: var(--accent-primary);
+.baykar-logo {
+    height: 20px;
+    width: auto;
+    filter: brightness(1) contrast(1);
 }
 
 .floating-options {
@@ -152,12 +149,10 @@ body {
     .floating-logo {
         top: var(--padding-md);
         left: var(--padding-md);
-        font-size: 12px;
-        padding: var(--padding-xs);
+        padding: var(--padding-xs) var(--padding-sm);
     }
     
-    .floating-logo svg {
-        width: 16px;
+    .baykar-logo {
         height: 16px;
     }
     
