@@ -40,6 +40,7 @@ class BGCSWebSocketClient {
      */
     setupMessageHandlers() {
         this.onMessage('connection_established', (data) => {
+            console.log('🔌 WebSocket connection established');
             this.clientId = data.client_id;
         });
         
@@ -107,6 +108,10 @@ class BGCSWebSocketClient {
                         .replace(/:\s*NaN/g, ': 0');
                     
                     const message = JSON.parse(cleanedData);
+                    // Only log non-state-update messages to reduce console spam
+                    if (message.type !== 'state_update') {
+                        console.log('📨 WebSocket message received:', message.type, message);
+                    }
                     this.handleMessage(message);
                 } catch (error) {
                     console.error('Error parsing WebSocket message:', error.message);

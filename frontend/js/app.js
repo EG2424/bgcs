@@ -682,6 +682,14 @@ class BGCSApp {
                 if (this.elements.speedValue) {
                     this.elements.speedValue.textContent = `${this.simulationSpeed.toFixed(1)}x`;
                 }
+                
+                // Send speed change to backend
+                if (this.websocketClient && this.websocketClient.connected) {
+                    this.websocketClient.send("simulation_control", {
+                        command: "set_speed",
+                        speed: this.simulationSpeed
+                    });
+                }
             });
         }
         
@@ -1011,6 +1019,18 @@ class BGCSApp {
         if (this.elements.entityCounter) {
             const entityCount = this.renderer3D ? this.renderer3D.entities.size : 0;
             this.elements.entityCounter.textContent = entityCount.toString();
+        }
+        
+        // Sync simulation speed slider with backend state
+        if (this.entityManager && this.elements.simulationSpeed) {
+            const backendSpeed = this.entityManager.simulationSpeed;
+            if (backendSpeed !== this.simulationSpeed) {
+                this.simulationSpeed = backendSpeed;
+                this.elements.simulationSpeed.value = backendSpeed;
+                if (this.elements.speedValue) {
+                    this.elements.speedValue.textContent = `${backendSpeed.toFixed(1)}x`;
+                }
+            }
         }
         
         // Get selected count for floating control panel from frontend UI controls

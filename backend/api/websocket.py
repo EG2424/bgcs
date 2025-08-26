@@ -80,18 +80,25 @@ class WebSocketManager:
         
         logger.info(f"WebSocket client {client_id} connected. Total connections: {len(self.active_connections)}")
         
-        # Send welcome message
-        await self._send_to_client(client_id, {
-            "type": "connection_established",
-            "data": {
-                "client_id": client_id,
-                "server_time": datetime.now().isoformat(),
-                "simulation_running": simulation_engine.running
+        try:
+            # Send welcome message
+            simulation_running = simulation_engine.running if simulation_engine else False
+            
+            welcome_message = {
+                "type": "connection_established",
+                "data": {
+                    "client_id": client_id,
+                    "server_time": datetime.now().isoformat(),
+                    "simulation_running": simulation_running
+                }
             }
-        })
-        
-        # Send initial state
-        await self._send_state_update(client_id)
+            await self._send_to_client(client_id, welcome_message)
+            
+            # Send initial state
+            await self._send_state_update(client_id)
+            
+        except Exception as e:
+            logger.error(f"Error during connection setup for {client_id}: {e}")
         
         return client_id
     
