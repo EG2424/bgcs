@@ -109,13 +109,6 @@ class BGCSTerrain {
         const vertices = geometry.attributes.position;
         
         // Apply heights to vertices
-        // Debug: Log first few vertices to understand coordinate system
-        for (let i = 0; i < Math.min(5, vertices.count); i++) {
-            const x = vertices.getX(i);
-            const y = vertices.getY(i);
-            const z = vertices.getZ(i);
-            console.log(`Vertex ${i}: plane coords (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
-        }
         
         // COORDINATE SYSTEM FIX:
         // PlaneGeometry creates vertices in XY plane: (x, y, 0)  
@@ -134,11 +127,6 @@ class BGCSTerrain {
             
             // Set the height as Z coordinate in plane space (becomes Y in world after rotation)
             vertices.setZ(i, height);
-            
-            // Debug first few vertices
-            if (i < 3) {
-                console.log(`  Plane(${planeX.toFixed(2)}, ${planeY.toFixed(2)}) -> World(${worldX.toFixed(2)}, ?, ${worldZ.toFixed(2)}) -> height: ${height.toFixed(2)}`);
-            }
         }
         
         
@@ -175,6 +163,7 @@ class BGCSTerrain {
         
         // State tracking
         this.colormapEnabled = false;
+        this.contourLinesEnabled = false;
         
         const material = this.solidMaterial;
         
@@ -189,15 +178,11 @@ class BGCSTerrain {
         // Add to scene
         this.scene.add(this.terrainMesh);
         
-        // Debug terrain coordinate system
-        console.log(`Terrain coordinate system:
-          Size: ${this.terrainSize}m x ${this.terrainSize}m
-          Bounds: X(${this.minX} to ${this.maxX}), Z(${this.minZ} to ${this.maxZ})
-          Heightmap: ${this.heightData.width}x${this.heightData.height}
-          Mesh rotation: ${this.terrainMesh.rotation.x} radians around X-axis`);
-        
         // Create square grid overlay
         this.createSquareGrid();
+        
+        // Initialize contour lines placeholder (generate on demand)
+        this.contourLines = null;
     }
     
     /**
@@ -269,6 +254,165 @@ class BGCSTerrain {
     }
     
     /**
+     * Create contour lines for elevation visualization
+     */
+    createContourLines() {
+        if (!this.heightData) return;
+        
+        // Calculate height range and contour intervals
+        let minHeight = Infinity;
+        let maxHeight = -Infinity;
+        
+        for (let i = 0; i < this.heightData.data.length; i++) {
+            const height = this.heightData.data[i];
+            minHeight = Math.min(minHeight, height);
+            maxHeight = Math.max(maxHeight, height);
+        }
+        
+        const heightRange = maxHeight - minHeight;
+        const baseInterval = Math.max(2, heightRange / 8); // Reduce to 8 contour lines max
+        
+        // Generate fewer contour elevations for performance
+        const contourElevations = [];
+        for (let elevation = Math.ceil(minHeight / baseInterval) * baseInterval; 
+             elevation <= maxHeight; 
+             elevation += baseInterval) {
+            contourElevations.push(elevation);
+        }
+        
+        // Reduce logging for performance
+        
+        // Generate contour line vertices with lower resolution
+        const vertices = [];
+        const resolution = 32; // Reduce resolution from 64 to 32 for performance
+        const stepX = this.terrainSize / resolution;
+        const stepZ = this.terrainSize / resolution;
+        
+        // For each contour elevation, trace the iso-curves
+        contourElevations.forEach(targetElevation => {
+            const contourPoints = this.traceContourLevel(targetElevation, resolution, stepX, stepZ);
+            
+            // Add points to vertices array
+            contourPoints.forEach(segment => {
+                if (segment.length >= 2) {
+                    for (let i = 0; i < segment.length - 1; i++) {
+                        const p1 = segment[i];
+                        const p2 = segment[i + 1];
+                        
+                        // Convert world coordinates to plane coordinates (reverse the rotation transform)
+                        vertices.push(p1.x, -p1.z, p1.y); // Convert back to plane space
+                        vertices.push(p2.x, -p2.z, p2.y);
+                    }
+                }
+            });
+        });
+        
+        // Create contour lines geometry
+        const contourGeometry = new THREE.BufferGeometry();
+        contourGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        
+        // Create material with military styling
+        const contourMaterial = new THREE.LineBasicMaterial({
+            color: 0xcccccc, // Light gray
+            transparent: true,
+            opacity: 0.4, // Semi-transparent
+            linewidth: 1,
+            depthTest: true,
+            depthWrite: false // Don't write to depth buffer for proper blending
+        });
+        
+        // Create contour lines object
+        this.contourLines = new THREE.LineSegments(contourGeometry, contourMaterial);
+        this.contourLines.rotation.x = -Math.PI / 2; // Same rotation as terrain
+        this.contourLines.position.set(0, 0.1, 0); // Slightly above terrain
+        this.contourLines.visible = false; // Start hidden
+        this.scene.add(this.contourLines);
+        
+        // Contour generation complete
+    }
+    
+    /**
+     * Trace contour lines at a specific elevation using marching squares algorithm
+     */
+    traceContourLevel(targetElevation, resolution, stepX, stepZ) {
+        const contourSegments = [];
+        
+        // Sample grid for marching squares
+        for (let i = 0; i < resolution - 1; i++) {
+            for (let j = 0; j < resolution - 1; j++) {
+                const x1 = this.minX + i * stepX;
+                const z1 = this.minZ + j * stepZ;
+                const x2 = x1 + stepX;
+                const z2 = z1 + stepZ;
+                
+                // Sample heights at grid corners
+                const h00 = this.sampleHeight(x1, z1); // Bottom-left
+                const h10 = this.sampleHeight(x2, z1); // Bottom-right  
+                const h01 = this.sampleHeight(x1, z2); // Top-left
+                const h11 = this.sampleHeight(x2, z2); // Top-right
+                
+                // Check if contour passes through this cell
+                const minH = Math.min(h00, h10, h01, h11);
+                const maxH = Math.max(h00, h10, h01, h11);
+                
+                if (targetElevation >= minH && targetElevation <= maxH) {
+                    // Generate contour segment for this cell
+                    const segment = this.generateContourSegment(
+                        targetElevation,
+                        { x: x1, z: z1, h: h00 },
+                        { x: x2, z: z1, h: h10 },
+                        { x: x1, z: z2, h: h01 },
+                        { x: x2, z: z2, h: h11 }
+                    );
+                    
+                    if (segment.length > 0) {
+                        contourSegments.push(segment);
+                    }
+                }
+            }
+        }
+        
+        return contourSegments;
+    }
+    
+    /**
+     * Generate contour segment within a grid cell using linear interpolation
+     */
+    generateContourSegment(targetElevation, p00, p10, p01, p11) {
+        const points = [];
+        
+        // Check each edge of the cell for intersections
+        const edges = [
+            { p1: p00, p2: p10 }, // Bottom edge
+            { p1: p10, p2: p11 }, // Right edge
+            { p1: p11, p2: p01 }, // Top edge
+            { p1: p01, p2: p00 }  // Left edge
+        ];
+        
+        edges.forEach(edge => {
+            const { p1, p2 } = edge;
+            
+            // Check if contour crosses this edge
+            if ((p1.h <= targetElevation && p2.h >= targetElevation) ||
+                (p1.h >= targetElevation && p2.h <= targetElevation)) {
+                
+                // Linear interpolation to find intersection point
+                const t = (targetElevation - p1.h) / (p2.h - p1.h);
+                const intersectionX = p1.x + t * (p2.x - p1.x);
+                const intersectionZ = p1.z + t * (p2.z - p1.z);
+                
+                points.push({
+                    x: intersectionX,
+                    z: intersectionZ,
+                    y: targetElevation + 0.2 // Slight elevation above terrain
+                });
+            }
+        });
+        
+        return points;
+    }
+    
+    /**
      * Toggle wireframe mode for terrain
      */
     setWireframeMode(enabled) {
@@ -305,6 +449,34 @@ class BGCSTerrain {
      */
     isColormapMode() {
         return this.colormapEnabled;
+    }
+    
+    /**
+     * Toggle contour lines on/off
+     */
+    setContourLinesMode(enabled) {
+        this.contourLinesEnabled = enabled;
+        
+        if (enabled) {
+            // Generate contour lines on first enable (lazy loading)
+            if (!this.contourLines) {
+                this.createContourLines();
+            }
+            if (this.contourLines) {
+                this.contourLines.visible = true;
+            }
+        } else {
+            if (this.contourLines) {
+                this.contourLines.visible = false;
+            }
+        }
+    }
+    
+    /**
+     * Check if contour lines mode is enabled
+     */
+    isContourLinesMode() {
+        return this.contourLinesEnabled;
     }
     
     /**
@@ -405,14 +577,9 @@ class BGCSTerrain {
             return 0;
         }
         
-        // Debug coordinate mapping
-        console.log(`sampleHeight input: worldX=${worldX.toFixed(2)}, worldZ=${worldZ.toFixed(2)}`);
-        
         // Convert world coordinates to heightmap coordinates
         const normalizedX = (worldX - this.minX) / (this.maxX - this.minX);
         const normalizedZ = (worldZ - this.minZ) / (this.maxZ - this.minZ);
-        
-        console.log(`  normalized: X=${normalizedX.toFixed(3)}, Z=${normalizedZ.toFixed(3)}`);
         
         // Clamp to valid range
         const clampedX = Math.max(0, Math.min(1, normalizedX));
@@ -422,15 +589,9 @@ class BGCSTerrain {
         const pixelX = Math.floor(clampedX * (this.heightData.width - 1));
         const pixelZ = Math.floor(clampedZ * (this.heightData.height - 1));
         
-        console.log(`  pixel coords: X=${pixelX}, Z=${pixelZ}`);
-        
         // Sample height
         const index = pixelZ * this.heightData.width + pixelX;
-        const height = this.heightData.data[index] || 0;
-        
-        console.log(`  sampled height: ${height.toFixed(2)}`);
-        
-        return height;
+        return this.heightData.data[index] || 0;
     }
     
     /**
@@ -475,6 +636,13 @@ class BGCSTerrain {
             this.squareGrid.geometry.dispose();
             this.squareGrid.material.dispose();
             this.squareGrid = null;
+        }
+        
+        if (this.contourLines) {
+            this.scene.remove(this.contourLines);
+            this.contourLines.geometry.dispose();
+            this.contourLines.material.dispose();
+            this.contourLines = null;
         }
         
         // Dispose both materials

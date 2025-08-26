@@ -592,6 +592,7 @@ class BGCSApp {
             showWireframe: document.getElementById('show-wireframe'),
             showTerrain: document.getElementById('show-terrain'),
             showHeightmapColors: document.getElementById('show-heightmap-colors'),
+            showContourLines: document.getElementById('show-contour-lines'),
             
             // Entity controls
             entitySearch: document.getElementById('entity-search'),
@@ -713,6 +714,13 @@ class BGCSApp {
         if (this.elements.showHeightmapColors) {
             this.elements.showHeightmapColors.addEventListener('change', (e) => {
                 this.toggleHeightmapColors(e.target.checked);
+            });
+        }
+        
+        // Contour lines control
+        if (this.elements.showContourLines) {
+            this.elements.showContourLines.addEventListener('change', (e) => {
+                this.toggleContourLines(e.target.checked);
             });
         }
         
@@ -2012,6 +2020,18 @@ class BGCSApp {
         if (this.renderer3D && this.renderer3D.terrain) {
             this.renderer3D.terrain.setColormapMode(enabled);
             this.log(`Heightmap colors ${enabled ? 'enabled' : 'disabled'}`, 'info');
+        } else {
+            this.log('Terrain not available', 'warn');
+        }
+    }
+    
+    /**
+     * Toggle contour lines mode
+     */
+    toggleContourLines(enabled) {
+        if (this.renderer3D && this.renderer3D.terrain) {
+            this.renderer3D.terrain.setContourLinesMode(enabled);
+            this.log(`Contour lines ${enabled ? 'enabled' : 'disabled'}`, 'info');
         } else {
             this.log('Terrain not available', 'warn');
         }
