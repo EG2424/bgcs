@@ -314,16 +314,16 @@ class BGCSUIControls {
     }
     
     /**
-     * Perform raycast hit testing for entity selection
+     * Perform raycast hit testing for entity selection with larger hit zones
      */
     performRaycast(mousePos) {
         if (!this.renderer3D || !this.cameraManager.getCurrentCamera()) return null;
         
         this.raycaster.setFromCamera(mousePos, this.cameraManager.getCurrentCamera());
         
-        // Get all entity meshes for hit testing
+        // First try normal raycast on visual entities
         const entityMeshes = Array.from(this.renderer3D.entities.values());
-        const intersects = this.raycaster.intersectObjects(entityMeshes, true);
+        let intersects = this.raycaster.intersectObjects(entityMeshes, true);
         
         if (intersects.length > 0) {
             const hit = intersects[0];
@@ -338,7 +338,45 @@ class BGCSUIControls {
             };
         }
         
-        return null;
+        // If no direct hit, try larger hit zones using distance-based approach
+        const camera = this.cameraManager.getCurrentCamera();
+        const hitZoneRadius = 30; // Pixels on screen
+        
+        // Convert mouse position to screen coordinates
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseScreenX = ((mousePos.x + 1) / 2) * rect.width;
+        const mouseScreenY = ((-mousePos.y + 1) / 2) * rect.height;
+        
+        let closestEntity = null;
+        let closestDistance = hitZoneRadius;
+        
+        this.renderer3D.entities.forEach((mesh, entityId) => {
+            // Project entity position to screen
+            const entityPos = mesh.position.clone();
+            entityPos.project(camera);
+            
+            const screenX = ((entityPos.x + 1) / 2) * rect.width;
+            const screenY = ((-entityPos.y + 1) / 2) * rect.height;
+            
+            // Calculate 2D screen distance
+            const distance = Math.sqrt(
+                Math.pow(screenX - mouseScreenX, 2) + 
+                Math.pow(screenY - mouseScreenY, 2)
+            );
+            
+            // Check if within hit zone and closer than previous candidates
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestEntity = {
+                    entityId: entityId,
+                    point: mesh.position.clone(),
+                    distance: camera.position.distanceTo(mesh.position),
+                    mesh: mesh
+                };
+            }
+        });
+        
+        return closestEntity;
     }
     
     /**
