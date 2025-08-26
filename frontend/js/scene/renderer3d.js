@@ -373,8 +373,16 @@ class BGCS3DRenderer {
             return;
         }
         
-        // Set position
-        mesh.position.set(position.x, position.y, position.z);
+        // Set position with height adjustment to sit on ground properly
+        let adjustedY = position.y;
+        if (type === 'drone') {
+            // Drone cube is 0.75 units tall, so raise by half height to sit on ground
+            adjustedY = position.y + 0.375; 
+        } else if (type === 'target') {
+            // Target cube is 0.6 units tall, so raise by half height to sit on ground
+            adjustedY = position.y + 0.3; 
+        }
+        mesh.position.set(position.x, adjustedY, position.z);
         
         // Store entity data
         mesh.userData = {
@@ -420,7 +428,19 @@ class BGCS3DRenderer {
     updateEntityPosition(entityId, position) {
         const mesh = this.entities.get(entityId);
         if (mesh) {
-            mesh.position.set(position.x, position.y, position.z);
+            // Apply same height adjustment as in addEntity
+            let adjustedY = position.y;
+            const entityType = mesh.userData.type;
+            
+            if (entityType === 'drone') {
+                // Drone cube is 0.75 units tall, so raise by half height to sit on ground
+                adjustedY = position.y + 0.375; 
+            } else if (entityType === 'target') {
+                // Target cube is 0.6 units tall, so raise by half height to sit on ground
+                adjustedY = position.y + 0.3; 
+            }
+            
+            mesh.position.set(position.x, adjustedY, position.z);
         }
     }
     

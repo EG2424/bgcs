@@ -266,12 +266,16 @@ class SimulationEngine:
     def _handle_out_of_bounds_entity(self, entity: Entity) -> None:
         """Handle entity that went out of bounds."""
         if isinstance(entity, Drone):
-            # Return drones to center
+            # Return drones to center without changing their mode
             entity.set_target_position(Vector3(0, 0, 50))
-            entity.set_mode("waypoint_mode")
+            # Don't force waypoint_mode - preserve user-set mode
         elif isinstance(entity, Target):
-            # Destroy out-of-bounds targets
-            entity.take_damage(1.0)
+            # Return targets to center area instead of destroying them
+            entity.set_target_position(Vector3(
+                random.uniform(-50, 50), 
+                0,  # Ground level
+                random.uniform(-50, 50)
+            ))
         
         logger.debug(f"Entity {entity.id} went out of bounds")
     
@@ -324,13 +328,13 @@ class SimulationEngine:
         """Spawn a test scenario with drones and targets."""
         import random
         
-        # Spawn drones in a circle around origin
+        # Spawn drones in a circle around origin (closer to center)
         for i in range(num_drones):
             angle = (2 * 3.14159 * i) / num_drones
-            radius = 200 + random.uniform(-50, 50)
-            x = radius * math.cos(angle)
-            y = radius * math.sin(angle)
-            z = random.uniform(30, 100)
+            radius = 50 + random.uniform(-20, 20)  # Much closer to center (30-70m radius)
+            x = radius * math.cos(angle)  # East-West
+            y = random.uniform(10, 30)  # Altitude (10-30m above ground)
+            z = radius * math.sin(angle)  # North-South
             
             self.spawn_entity(
                 "drone",
@@ -339,11 +343,11 @@ class SimulationEngine:
                 current_mode="random_search"
             )
         
-        # Spawn targets randomly
+        # Spawn targets randomly (closer to center)
         for i in range(num_targets):
-            x = random.uniform(-300, 300)
-            y = random.uniform(-300, 300)
-            z = 0  # Ground level
+            x = random.uniform(-80, 80)  # East-West (-80 to +80m)
+            y = 0  # Ground level (Y is up/down in 3D space)
+            z = random.uniform(-80, 80)  # North-South (-80 to +80m)
             
             roles = ["tank", "car", "infantry", "SAM"]
             role = random.choice(roles)

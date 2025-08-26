@@ -74,6 +74,11 @@ class Target(Entity):
         """Update target state based on current behavior mode."""
         super().update(delta_time)
         
+        # Enforce ground level constraint - targets stay at ground level (y=0)
+        if self.position.y != 0:
+            self.position.y = 0
+            self.velocity.y = 0  # No vertical movement for ground vehicles
+        
         if self.destroyed:
             return
         
@@ -125,11 +130,11 @@ class Target(Entity):
         current_time = time.time()
         if current_time - self._last_micro_movement > 30.0:
             import random
-            # Small random adjustment (1-3 meters)
+            # Small random adjustment (1-3 meters) - stay on ground
             self.target_position = Vector3(
                 self.position.x + random.uniform(-3, 3),
-                self.position.y + random.uniform(-3, 3),
-                self.position.z
+                0,  # Keep targets at ground level
+                self.position.z + random.uniform(-3, 3)
             )
             self._last_micro_movement = current_time
             

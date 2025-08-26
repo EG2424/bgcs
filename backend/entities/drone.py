@@ -39,7 +39,7 @@ class Drone(Entity):
         self._state_manager = None
         
         # Drone-specific properties
-        self.max_speed = 25.0  # m/s (higher than base)
+        self.max_speed = 2.0  # m/s (reduced for realistic movement)
         self.detection_radius = 150.0  # meters (better sensors)
         self.collision_radius = 3.0  # meters (smaller profile)
         
@@ -51,12 +51,12 @@ class Drone(Entity):
         self.hunting_range: float = 200.0  # meters
         
         # Movement properties
-        self.turn_rate: float = math.pi  # radians/second
+        self.turn_rate: float = math.pi / 4  # radians/second (slower turning)
         self.approach_threshold: float = 5.0  # meters
-        self.patrol_area_size: float = 100.0  # meters
+        self.patrol_area_size: float = 150.0  # meters (increased for better spread)
         
-        # State tracking
-        self.last_random_target_time: float = 0.0
+        # State tracking with randomized start times to prevent synchronization
+        self.last_random_target_time: float = -random.uniform(0, 10.0)  # Random start offset
         self.random_target_interval: float = 10.0  # seconds
         self.engagement_range: float = 10.0  # meters for kamikaze
         
@@ -79,6 +79,12 @@ class Drone(Entity):
     def update(self, delta_time: float) -> None:
         """Update drone state based on current behavior mode."""
         super().update(delta_time)
+        
+        # Enforce ground level constraint - drones cannot go below ground (y=0)
+        if self.position.y < 0:
+            self.position.y = 0
+            if self.velocity.y < 0:  # Stop downward movement
+                self.velocity.y = 0
         
         if self.destroyed:
             return
@@ -105,15 +111,16 @@ class Drone(Entity):
         if (current_time - self.last_random_target_time > self.random_target_interval or
             self._is_at_target()):
             
-            # Generate random position within patrol area
-            center = Vector3(0, 0, 50)  # Default patrol center
+            # Generate random position within patrol area around drone's spawn area
+            # Use current position as patrol center to avoid clustering
+            center = self.position
             angle = random.uniform(0, 2 * math.pi)
             distance = random.uniform(0, self.patrol_area_size)
             
             self.target_position = Vector3(
-                center.x + distance * math.cos(angle),
-                center.y + distance * math.sin(angle),
-                random.uniform(30, 100)  # Random altitude
+                center.x + distance * math.cos(angle),  # East-West
+                random.uniform(5, 20),  # Altitude (Y is up/down)
+                center.z + distance * math.sin(angle)   # North-South
             )
             
             self.last_random_target_time = current_time
@@ -268,18 +275,10 @@ class Drone(Entity):
     
     def _update_hold_position(self, delta_time: float) -> None:
         """Hold Position: Stationary defensive posture."""
-        # Maintain current position with small adjustments
+        # Truly hold position - no movement at all
         self.velocity = Vector3(0, 0, 0)
-        
-        # Small hover adjustments
-        hover_amplitude = 2.0
-        hover_frequency = 0.5
-        time_offset = self.last_update_time * hover_frequency
-        
-        hover_x = hover_amplitude * math.sin(time_offset)
-        hover_z = hover_amplitude * math.cos(time_offset * 0.7)
-        
-        self.velocity = Vector3(hover_x, 0, hover_z)
+        # Don't update target_position to prevent drift
+        self.target_position = self.position
     
     def _move_towards_target(self, delta_time: float) -> None:
         """Move towards target position with realistic flight dynamics."""
@@ -313,7 +312,7 @@ class Drone(Entity):
                 self.heading = target_heading
             
             # Calculate velocity based on heading
-            speed = min(self.max_speed, distance * 2)  # Slow down when close
+            speed = min(self.max_speed, distance * 0.5)  # Slow down when close, cap at max_speed
             self.velocity = Vector3(
                 speed * math.cos(self.heading),
                 speed * math.sin(self.heading),

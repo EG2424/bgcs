@@ -167,6 +167,10 @@ class StateManager:
         for key, value in kwargs.items():
             if hasattr(entity, key):
                 setattr(entity, key, value)
+                
+        # Ensure drones default to random_search mode if no mode specified
+        if entity_type == "drone" and "current_mode" not in kwargs:
+            entity.current_mode = "random_search"
         
         if self.add_entity(entity):
             return entity
@@ -303,7 +307,7 @@ class StateManager:
         """Get complete state snapshot for serialization."""
         return {
             "entities": {entity_id: entity.to_dict() 
-                        for entity_id, entity in self.entities.items()},
+                        for entity_id, entity in list(self.entities.items())},
             "selected_entities": self.selected_entities.copy(),
             "simulation_running": self.simulation_running,
             "simulation_speed": safe_float(self.simulation_speed),
