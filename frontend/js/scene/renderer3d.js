@@ -72,7 +72,8 @@ class BGCS3DRenderer {
         this.scene.background = texture;
         
         // Add subtle fog for depth perception with matching satellite map colors
-        this.scene.fog = new THREE.Fog(0x1f1c18, 50, 500);
+        // Increase fog distances to prevent terrain darkening at normal zoom levels
+        this.scene.fog = new THREE.Fog(0x1f1c18, 200, 1000);
     }
     
     /**
