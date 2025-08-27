@@ -137,20 +137,24 @@ class BGCSTerrain {
         this.addVertexColors(geometry);
         
         // Create terrain material with vertex colors disabled by default
-        this.solidMaterial = new THREE.MeshLambertMaterial({
-            color: 0x2a2a2a, // Same dark gray as existing ground
-            transparent: true,
-            opacity: 0.8,
+        // Use MeshBasicMaterial to avoid lighting-based darkening at distance
+        this.solidMaterial = new THREE.MeshBasicMaterial({
+            color: 0x3a3a3a, // Slightly lighter gray for better visibility
+            transparent: false, // Make solid to prevent depth sorting issues with contour lines
             wireframe: false,
-            vertexColors: false // Start with colormap disabled
+            vertexColors: false, // Start with colormap disabled
+            fog: false, // Disable fog effect on terrain material
+            depthWrite: true // Ensure proper depth writing
         });
         
         // Create colormap material - military tactical appearance
-        this.colormapMaterial = new THREE.MeshLambertMaterial({
+        // Use MeshBasicMaterial to maintain colors at distance
+        this.colormapMaterial = new THREE.MeshBasicMaterial({
             transparent: false, // Solid military appearance
             wireframe: false,
             vertexColors: true, // Use vertex colors for heightmap
-            side: THREE.FrontSide // Optimize for performance
+            side: THREE.FrontSide, // Optimize for performance
+            fog: false // Disable fog effect to preserve colors
         });
         
         // Create separate wireframe material with subtle color
@@ -315,16 +319,16 @@ class BGCSTerrain {
         const contourMaterial = new THREE.LineBasicMaterial({
             color: 0xcccccc, // Light gray
             transparent: true,
-            opacity: 0.4, // Semi-transparent
+            opacity: 0.6, // Slightly more opaque for better visibility
             linewidth: 1,
-            depthTest: true,
+            depthTest: false, // Don't test depth to always render on top
             depthWrite: false // Don't write to depth buffer for proper blending
         });
         
         // Create contour lines object
         this.contourLines = new THREE.LineSegments(contourGeometry, contourMaterial);
         this.contourLines.rotation.x = -Math.PI / 2; // Same rotation as terrain
-        this.contourLines.position.set(0, 0.1, 0); // Slightly above terrain
+        this.contourLines.position.set(0, 0.1, 0); // Minimal offset above terrain
         this.contourLines.visible = false; // Start hidden
         this.scene.add(this.contourLines);
         
@@ -404,7 +408,7 @@ class BGCSTerrain {
                 points.push({
                     x: intersectionX,
                     z: intersectionZ,
-                    y: targetElevation + 0.2 // Slight elevation above terrain
+                    y: targetElevation + 0.1 // Minimal elevation above terrain
                 });
             }
         });
@@ -438,6 +442,8 @@ class BGCSTerrain {
         this.colormapEnabled = enabled;
         
         if (enabled) {
+            // Update colors before switching to colormap material
+            this.updateTerrainColors();
             this.terrainMesh.material = this.colormapMaterial;
         } else {
             this.terrainMesh.material = this.solidMaterial;
@@ -507,6 +513,13 @@ class BGCSTerrain {
      * Navy Blue (water) -> Olive Green (lowlands) -> Military Green (terrain) -> Desert Tan (hills) -> Light Tan (peaks)
      */
     addVertexColors(geometry) {
+        this.generateVertexColors(geometry);
+    }
+    
+    /**
+     * Generate vertex colors (can be called to update colors)
+     */
+    generateVertexColors(geometry) {
         const vertices = geometry.attributes.position;
         const colors = new Float32Array(vertices.count * 3);
         
@@ -527,38 +540,40 @@ class BGCSTerrain {
             const normalizedHeight = heightRange > 0 ? (height - minHeight) / heightRange : 0;
             
             // Military tactical color gradient: NATO/Defense mapping standard
+            // Reduce overall brightness for MeshBasicMaterial (no lighting attenuation)
+            const brightnessMultiplier = 0.15; // Tone down colors by 85%
             let r, g, b;
             
             if (normalizedHeight < 0.2) {
                 // Very low areas - Deep Navy Blue (water bodies, marshes)
                 const t = normalizedHeight / 0.2;
-                r = 0.05 + t * 0.1;  // 0.05 to 0.15 (very dark red)
-                g = 0.1 + t * 0.15;  // 0.1 to 0.25 (dark green)
-                b = 0.3 + t * 0.2;   // 0.3 to 0.5 (navy blue)
+                r = (0.05 + t * 0.1) * brightnessMultiplier;  // 0.05 to 0.15 (very dark red)
+                g = (0.1 + t * 0.15) * brightnessMultiplier;  // 0.1 to 0.25 (dark green)
+                b = (0.3 + t * 0.2) * brightnessMultiplier;   // 0.3 to 0.5 (navy blue)
             } else if (normalizedHeight < 0.4) {
                 // Low areas - Dark Olive Green (lowlands, valleys)
                 const t = (normalizedHeight - 0.2) / 0.2;
-                r = 0.15 + t * 0.2;  // 0.15 to 0.35 (olive)
-                g = 0.25 + t * 0.25; // 0.25 to 0.5 (military green)
-                b = 0.5 - t * 0.35;  // 0.5 to 0.15 (reduce blue)
+                r = (0.15 + t * 0.2) * brightnessMultiplier;  // 0.15 to 0.35 (olive)
+                g = (0.25 + t * 0.25) * brightnessMultiplier; // 0.25 to 0.5 (military green)
+                b = (0.5 - t * 0.35) * brightnessMultiplier;  // 0.5 to 0.15 (reduce blue)
             } else if (normalizedHeight < 0.6) {
                 // Mid areas - Military Green (standard terrain)
                 const t = (normalizedHeight - 0.4) / 0.2;
-                r = 0.35 + t * 0.1;  // 0.35 to 0.45 (muted brown-green)
-                g = 0.5 + t * 0.1;   // 0.5 to 0.6 (forest green)
-                b = 0.15 + t * 0.05; // 0.15 to 0.2 (minimal blue)
+                r = (0.35 + t * 0.1) * brightnessMultiplier;  // 0.35 to 0.45 (muted brown-green)
+                g = (0.5 + t * 0.1) * brightnessMultiplier;   // 0.5 to 0.6 (forest green)
+                b = (0.15 + t * 0.05) * brightnessMultiplier; // 0.15 to 0.2 (minimal blue)
             } else if (normalizedHeight < 0.8) {
                 // High areas - Desert Tan/Brown (hills, ridges)
                 const t = (normalizedHeight - 0.6) / 0.2;
-                r = 0.45 + t * 0.3;  // 0.45 to 0.75 (tan/brown)
-                g = 0.6 - t * 0.2;   // 0.6 to 0.4 (reduce green)
-                b = 0.2 - t * 0.1;   // 0.2 to 0.1 (minimal blue)
+                r = (0.45 + t * 0.3) * brightnessMultiplier;  // 0.45 to 0.75 (tan/brown)
+                g = (0.6 - t * 0.2) * brightnessMultiplier;   // 0.6 to 0.4 (reduce green)
+                b = (0.2 - t * 0.1) * brightnessMultiplier;   // 0.2 to 0.1 (minimal blue)
             } else {
                 // Very high areas - Light Desert/Gray (peaks, exposed rock)
                 const t = (normalizedHeight - 0.8) / 0.2;
-                r = 0.75 + t * 0.15; // 0.75 to 0.9 (light tan)
-                g = 0.4 + t * 0.3;   // 0.4 to 0.7 (add lightness)
-                b = 0.1 + t * 0.2;   // 0.1 to 0.3 (slight blue for rock)
+                r = (0.75 + t * 0.15) * brightnessMultiplier; // 0.75 to 0.9 (light tan)
+                g = (0.4 + t * 0.3) * brightnessMultiplier;   // 0.4 to 0.7 (add lightness)
+                b = (0.1 + t * 0.2) * brightnessMultiplier;   // 0.1 to 0.3 (slight blue for rock)
             }
             
             colors[i * 3] = r;
@@ -664,5 +679,20 @@ class BGCSTerrain {
      */
     setHeightmapUrl(url) {
         this.heightmapUrl = url;
+    }
+    
+    /**
+     * Update terrain colors (useful for adjusting brightness)
+     */
+    updateTerrainColors() {
+        if (!this.terrainMesh) return;
+        
+        const geometry = this.terrainMesh.geometry;
+        this.generateVertexColors(geometry);
+        
+        // Mark colors as needing update
+        if (geometry.attributes.color) {
+            geometry.attributes.color.needsUpdate = true;
+        }
     }
 }
