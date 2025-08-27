@@ -162,6 +162,9 @@ class BGCSEntityStateManager {
             // Entity-specific properties
             ...this.getEntitySpecificProperties(entityData),
             
+            // Sensors data from backend (if present)
+            sensors: entityData.sensors || null,
+            
             // Timestamps
             createdTime: entityData.created_time || Date.now() / 1000,
             lastUpdateTime: entityData.last_update_time || Date.now() / 1000,
@@ -224,6 +227,11 @@ class BGCSEntityStateManager {
         
         // Update entity-specific properties
         Object.assign(entity, this.getEntitySpecificProperties(entityData));
+        
+        // Update sensors data from backend (if present)
+        if (entityData.sensors) {
+            entity.sensors = entityData.sensors;
+        }
         
         // Update timestamp
         entity.lastUpdateTime = entityData.last_update_time || Date.now() / 1000;

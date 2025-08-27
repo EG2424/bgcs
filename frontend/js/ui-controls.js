@@ -687,11 +687,8 @@ class BGCSUIControls {
         // Update UI
         this.updateSelectionUI();
         
-        // Update control panel to show entity modes
-        if (window.bgcsApp) {
-            window.bgcsApp.updateControlPanelModes();
-            window.bgcsApp.log(`Selected ${entityId}`, 'info');
-        }
+        // Update control panel and sensor overlays
+        this.notifySelectionChange(`Selected ${entityId}`);
     }
     
     /**
@@ -709,10 +706,8 @@ class BGCSUIControls {
         // Update UI
         this.updateSelectionUI();
         
-        // Update control panel
-        if (window.bgcsApp) {
-            window.bgcsApp.updateControlPanelModes();
-        }
+        // Update control panel and sensor overlays
+        this.notifySelectionChange();
     }
     
     /**
@@ -729,10 +724,8 @@ class BGCSUIControls {
         this.selectedEntities.clear();
         this.updateSelectionUI();
         
-        // Update control panel
-        if (window.bgcsApp) {
-            window.bgcsApp.updateControlPanelModes();
-        }
+        // Update control panel and sensor overlays
+        this.notifySelectionChange();
         
     }
     
@@ -947,6 +940,19 @@ class BGCSUIControls {
         this.renderer3D.entities.forEach((mesh, entityId) => {
             this.selectEntity(entityId);
         });
+    }
+    
+    /**
+     * Helper method to notify app of selection changes
+     */
+    notifySelectionChange(message = null) {
+        if (window.bgcsApp) {
+            window.bgcsApp.updateControlPanelModes();
+            window.bgcsApp.updateSensorOverlaySelection();
+            if (message) {
+                window.bgcsApp.log(message, 'info');
+            }
+        }
     }
 }
 

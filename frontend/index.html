@@ -66,6 +66,12 @@
                             <span class="toggle-slider"></span>
                             <span class="toggle-label">Contours</span>
                         </label>
+                        
+                        <label class="option-toggle">
+                            <input type="checkbox" id="show-sensor-footprints" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Footprints</span>
+                        </label>
                     </div>
                 </div>
                 
@@ -265,6 +271,12 @@
     <script src="/static/js/scene/terrain.js"></script>
     <script src="/static/js/scene/renderer3d.js"></script>
     <script src="/static/js/scene/cameras.js"></script>
+    <!-- Sensor Overlays (Optional) -->
+    <script src="/static/js/scene/overlays/SensorOverlayManager.js"></script>
+    <script src="/static/js/scene/overlays/FootprintOverlay.js"></script>
+    <script src="/static/js/scene/overlays/test-sensor-data.js"></script>
+    <script src="/static/js/scene/overlays/debug-sensor-overlays.js"></script>
+    
     <!-- Controls -->
     <script src="/static/js/ui-controls.js"></script>
     <script src="/static/js/entity-controls.js"></script>

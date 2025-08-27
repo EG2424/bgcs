@@ -6,6 +6,7 @@ Waypoint Mode, Kamikaze, and Hold Position.
 
 import random
 import math
+import time
 from typing import Optional, Dict, Any, List
 from .base import Entity, Vector3, safe_float
 
@@ -42,6 +43,24 @@ class Drone(Entity):
         self.max_speed = 2.0  # m/s (reduced for realistic movement)
         self.detection_radius = 150.0  # meters (better sensors)
         self.collision_radius = 3.0  # meters (smaller profile)
+        
+        # Sensor system properties with fixed gimbal angles
+        self.sensors = {
+            "main_cam": {
+                "enabled": True,
+                "gimbal": {
+                    "pan": 0.0,      # Fixed forward-facing pan angle
+                    "tilt": -15.0    # Fixed downward tilt angle for typical camera
+                }
+            }
+        }
+        
+        # Gimbal simulation state (DISABLED - keeping code for future use)
+        self._gimbal_simulation_enabled = False  # Toggle to enable/disable gimbal movement
+        # Initialize simulation parameters only when needed to avoid waste
+        self._gimbal_time_offset = 0.0
+        self._gimbal_pattern = "scan"
+        self._gimbal_speed_multiplier = 1.0
         
         # Behavior properties
         self.target_entity_id: Optional[str] = None  # Target to follow/attack
@@ -97,6 +116,9 @@ class Drone(Entity):
         
         if self.destroyed:
             return
+        
+        # Update sensor gimbal simulation
+        self._update_gimbal_simulation(delta_time)
         
         # Execute behavior based on current mode
         if self.current_mode == "random_search":
@@ -349,6 +371,43 @@ class Drone(Entity):
         """Check if drone is at target position."""
         return self.position.distance_to(self.target_position) < self.approach_threshold
     
+    def _update_gimbal_simulation(self, delta_time: float) -> None:
+        """Update gimbal angles with realistic simulation patterns (CURRENTLY DISABLED)."""
+        if not self.sensors.get("main_cam", {}).get("enabled", False):
+            return
+        
+        # Check if gimbal simulation is enabled
+        if not getattr(self, '_gimbal_simulation_enabled', False):
+            # Keep gimbal at fixed position - no movement
+            return
+        
+        # === GIMBAL SIMULATION CODE (PRESERVED FOR FUTURE USE) ===
+        # Use absolute time with individual offset for true randomization
+        absolute_time = time.time() + self._gimbal_time_offset
+        gimbal = self.sensors["main_cam"]["gimbal"]
+        
+        # Apply speed multiplier to all patterns for variation
+        speed = self._gimbal_speed_multiplier
+        
+        if self._gimbal_pattern == "scan":
+            # Horizontal scanning pattern
+            gimbal["pan"] = 45.0 * math.sin(absolute_time * 0.3 * speed)  
+            gimbal["tilt"] = -70.0 + 10.0 * math.sin(absolute_time * 0.5 * speed)  
+            
+        elif self._gimbal_pattern == "track":
+            # Tracking a point (more dynamic movement)
+            gimbal["pan"] = 30.0 * math.sin(absolute_time * 0.8 * speed) + 15.0 * math.cos(absolute_time * 1.2 * speed)
+            gimbal["tilt"] = -70.0 + 15.0 * math.sin(absolute_time * 0.6 * speed)  
+            
+        elif self._gimbal_pattern == "patrol":
+            # Patrol pattern - slower, wider sweeps
+            gimbal["pan"] = 60.0 * math.sin(absolute_time * 0.15 * speed)  
+            gimbal["tilt"] = -65.0 + 5.0 * math.sin(absolute_time * 0.25 * speed)
+        
+        # Clamp gimbal angles to realistic hardware limits
+        gimbal["pan"] = max(-180.0, min(180.0, gimbal["pan"]))
+        gimbal["tilt"] = max(-90.0, min(30.0, gimbal["tilt"]))
+    
     def set_mode(self, mode: str) -> bool:
         """Set drone behavior mode."""
         if mode in self.valid_modes:
@@ -373,6 +432,22 @@ class Drone(Entity):
         self.kamikaze_enabled = enabled
         if not enabled and self.current_mode == "kamikaze":
             self.set_mode("random_search")
+    
+    def enable_gimbal_simulation(self, enabled: bool) -> None:
+        """Enable or disable gimbal movement simulation."""
+        self._gimbal_simulation_enabled = enabled
+        
+        # Initialize random parameters only when enabling simulation
+        if enabled and (self._gimbal_time_offset == 0.0 or self._gimbal_pattern == "scan"):
+            self._gimbal_time_offset = random.uniform(0, 20.0)
+            self._gimbal_pattern = random.choice(["scan", "track", "patrol"])
+            self._gimbal_speed_multiplier = random.uniform(0.7, 1.5)
+    
+    def set_gimbal_angles(self, pan: float, tilt: float) -> None:
+        """Set fixed gimbal angles (pan and tilt in degrees)."""
+        if "main_cam" in self.sensors:
+            self.sensors["main_cam"]["gimbal"]["pan"] = max(-180.0, min(180.0, pan))
+            self.sensors["main_cam"]["gimbal"]["tilt"] = max(-90.0, min(30.0, tilt))
     
     def get_visual_state(self) -> str:
         """Get color coding for visual representation."""
@@ -401,7 +476,19 @@ class Drone(Entity):
             "patrol_area_size": safe_float(self.patrol_area_size),
             "engagement_range": safe_float(self.engagement_range),
             "valid_modes": self.valid_modes,
-            "visual_state": self.get_visual_state()
+            "visual_state": self.get_visual_state(),
+            
+            # Add sensor data with only dynamic values
+            "sensors": {
+                sensor_id: {
+                    "enabled": sensor_data.get("enabled", True),
+                    "gimbal": {
+                        "pan": safe_float(sensor_data.get("gimbal", {}).get("pan", 0.0)),
+                        "tilt": safe_float(sensor_data.get("gimbal", {}).get("tilt", -15.0))
+                    }
+                }
+                for sensor_id, sensor_data in self.sensors.items()
+            }
         })
         return data
     

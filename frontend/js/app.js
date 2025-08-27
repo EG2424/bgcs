@@ -20,6 +20,9 @@ class BGCSApp {
         this.entityStateManager = null;
         this.isConnected = false;
         
+        // Sensor overlay system
+        this.sensorOverlayManager = null;
+        
         // UI State
         this.selectedEntities = new Set();
         this.currentView = 'top'; // 'top' or '3d'
@@ -117,6 +120,9 @@ class BGCSApp {
             }
             window.bgcs3D = this.renderer3D; // Make globally accessible
             
+            // Initialize sensor overlay system
+            await this.setupSensorOverlays();
+            
             // Add some demo entities for testing
             this.addDemoEntities();
             
@@ -147,6 +153,52 @@ class BGCSApp {
         
         this.log('Using 2D canvas fallback', 'warning');
         console.log('Using 2D canvas fallback');
+    }
+    
+    /**
+     * Setup sensor overlay system
+     */
+    async setupSensorOverlays() {
+        try {
+            console.log('Setting up sensor overlay system...');
+            
+            // Check if classes are available
+            if (typeof BGCSSensorOverlayManager === 'undefined') {
+                console.warn('BGCSSensorOverlayManager class not loaded');
+                this.log('Sensor overlay system not available (scripts not loaded)', 'warning');
+                return;
+            }
+            
+            if (!this.renderer3D) {
+                console.warn('Renderer3D not available for sensor overlays');
+                this.log('Sensor overlay system not available (no 3D renderer)', 'warning');
+                return;
+            }
+            
+            console.log('Creating BGCSSensorOverlayManager...');
+            this.sensorOverlayManager = new BGCSSensorOverlayManager(
+                this.renderer3D, 
+                this.renderer3D.terrain
+            );
+            
+            console.log('Initializing sensor overlay manager...');
+            const success = await this.sensorOverlayManager.init();
+            
+            if (success) {
+                window.bgcsSensorOverlayManager = this.sensorOverlayManager; // Global access
+                this.log('Sensor overlay system initialized successfully', 'success');
+                console.log('✅ Sensor overlay system ready');
+            } else {
+                this.log('Sensor overlay system initialization failed', 'error');
+                this.sensorOverlayManager = null;
+                console.error('❌ Sensor overlay system initialization failed');
+            }
+            
+        } catch (error) {
+            console.error('Sensor overlay setup error:', error);
+            this.log(`Sensor overlay system error: ${error.message}`, 'error');
+            this.sensorOverlayManager = null;
+        }
     }
     
     /**
@@ -354,6 +406,11 @@ class BGCSApp {
             this.updateEntityVisuals(entity);
         }
         
+        // Initialize entity sensor data for overlays
+        if (this.sensorOverlayManager) {
+            this.sensorOverlayManager.updateEntitySensorData(entity.id, entity);
+        }
+        
         // Add entity to Assets panel
         this.addEntityToList({
             entity_id: entity.id,
@@ -373,6 +430,17 @@ class BGCSApp {
         if (this.renderer3D) {
             this.renderer3D.updateEntityPosition(entity.id, entity.position);
             this.updateEntityVisuals(entity);
+        }
+        
+        // Update sensor overlays with new entity data INCLUDING position/rotation
+        if (this.sensorOverlayManager) {
+            // Create entity data with current position/rotation for overlay updates
+            const entityDataForOverlay = {
+                ...entity,
+                position: entity.position || { x: 0, y: 0, z: 0 },
+                rotation: entity.rotation || { x: 0, y: 0, z: 0 }
+            };
+            this.sensorOverlayManager.updateEntitySensorData(entity.id, entityDataForOverlay);
         }
         
         // Update Assets panel if mode changed
@@ -399,6 +467,11 @@ class BGCSApp {
             this.renderer3D.removeEntity(entity.id);
         }
         
+        // Remove from sensor overlay tracking
+        if (this.sensorOverlayManager) {
+            this.sensorOverlayManager.removeEntity(entity.id);
+        }
+        
         // Remove from Assets panel
         this.removeEntityFromList(entity.id);
         
@@ -409,6 +482,15 @@ class BGCSApp {
         this.updateTabCycleEntityList();
     }
     
+    /**
+     * Update sensor overlays based on current selection
+     */
+    updateSensorOverlaySelection() {
+        if (!this.sensorOverlayManager || !this.uiControls) return;
+        
+        const selectedEntityIds = Array.from(this.uiControls.selectedEntities || new Set());
+        this.sensorOverlayManager.updateSelection(selectedEntityIds);
+    }
     
     /**
      * Handle complete state update from state manager
@@ -605,6 +687,7 @@ class BGCSApp {
             showTerrain: document.getElementById('show-terrain'),
             showHeightmapColors: document.getElementById('show-heightmap-colors'),
             showContourLines: document.getElementById('show-contour-lines'),
+            showSensorFootprints: document.getElementById('show-sensor-footprints'),
             
             // Entity controls
             entitySearch: document.getElementById('entity-search'),
@@ -733,6 +816,13 @@ class BGCSApp {
         if (this.elements.showContourLines) {
             this.elements.showContourLines.addEventListener('change', (e) => {
                 this.toggleContourLines(e.target.checked);
+            });
+        }
+        
+        // Sensor overlay controls
+        if (this.elements.showSensorFootprints) {
+            this.elements.showSensorFootprints.addEventListener('change', (e) => {
+                this.toggleSensorFootprints(e.target.checked);
             });
         }
         
@@ -952,6 +1042,8 @@ class BGCSApp {
             
             // Update control panel
             this.updateControlPanelModes();
+            
+            // Update sensor overlays (handled by UI controls)
             
             // Log the action
             const entityType = this.getEntityType(entityId);
@@ -1504,6 +1596,8 @@ class BGCSApp {
             
             // Update control panel to show current modes
             this.updateControlPanelModes();
+            
+            // Update sensor overlays (handled by UI controls)
         }
     }
     
@@ -1526,6 +1620,8 @@ class BGCSApp {
             
             // Update control panel to show current modes
             this.updateControlPanelModes();
+            
+            // Update sensor overlays (handled by UI controls)
         }
     }
 
@@ -2171,6 +2267,21 @@ class BGCSApp {
         }
     }
     
+    /**
+     * Toggle sensor footprint overlays
+     */
+    toggleSensorFootprints(enabled) {
+        if (this.sensorOverlayManager) {
+            this.sensorOverlayManager.setFeatureFlags({ 
+                footprintEnabled: enabled 
+            });
+            this.log(`Sensor footprints ${enabled ? 'enabled' : 'disabled'}`, 'info');
+        } else {
+            this.log('Sensor overlay system not available', 'warn');
+        }
+    }
+    
+    
     // ===== GROUP MANAGEMENT METHODS =====
     
     /**
@@ -2426,6 +2537,9 @@ class BGCSApp {
         // Update visual selection
         this.updateAssetMenuSelection();
         this.updateGroupMenuSelection();
+        
+        // Update sensor overlays for new selection
+        this.updateSensorOverlaySelection();
     }
 
     /**
@@ -2495,6 +2609,9 @@ class BGCSApp {
         // Update visual selection
         this.updateAssetMenuSelection();
         this.updateGroupMenuSelection();
+        
+        // Update sensor overlays for new selection
+        this.updateSensorOverlaySelection();
         
         this.log(`Selected range: ${endIndex - startIndex + 1} groups (${totalEntitiesSelected} entities)`, 'success');
     }
