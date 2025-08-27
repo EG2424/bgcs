@@ -17,6 +17,7 @@
 ## Keyboard Shortcuts
 - 1: Top View
 - 2: 3D View
+- L: Toggle 2D View Lock
 - H: Focus selected
 - Space: Hold/Stop
 - Delete: Remove

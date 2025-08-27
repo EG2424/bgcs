@@ -29,6 +29,9 @@ class BGCSApp {
         this.entityScale = 1.0;
         this.simulationSpeed = 1.0;
         
+        // 2D View Lock State
+        this.is2DViewLocked = false;
+        
         // UI Elements
         this.elements = {};
         
@@ -993,6 +996,23 @@ class BGCSApp {
                     this.deleteSelectedEntities();
                 }
                 break;
+            case 'KeyL':
+                if (!event.target.matches('input')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                    
+                    // Clear any existing selections and blur focused elements
+                    window.getSelection().removeAllRanges();
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
+                    
+                    this.toggle2DViewLock();
+                    
+                    return false;
+                }
+                break;
             case 'Tab':
                 if (!event.target.matches('input')) {
                     event.preventDefault();
@@ -1105,11 +1125,20 @@ class BGCSApp {
      * Set current view mode (legacy - now handled by camera system)
      */
     setView(view) {
+        // Check if trying to switch away from 2D when locked
+        if (this.is2DViewLocked && view === '3d') {
+            this.log('Cannot switch to 3D view: 2D view is locked (Press L to unlock)', 'warning');
+            return false;
+        }
+        
         this.currentView = view;
         
         // Update 3D camera if available
         if (this.cameraManager) {
-            this.cameraManager.setView(view);
+            const success = this.cameraManager.setView(view);
+            if (!success) {
+                return false; // Camera manager blocked the view change
+            }
         }
         
         this.log(`Camera: ${view} orientation`, 'info');
@@ -1118,6 +1147,8 @@ class BGCSApp {
         if (!this.renderer3D) {
             this.drawPlaceholderContent();
         }
+        
+        return true;
     }
     
     /**
@@ -2721,6 +2752,84 @@ class BGCSApp {
             }
         }
         return null;
+    }
+    
+    /**
+     * Toggle 2D view lock state
+     */
+    toggle2DViewLock() {
+        this.is2DViewLocked = !this.is2DViewLocked;
+        
+        // Update camera manager lock state
+        if (this.cameraManager) {
+            this.cameraManager.set2DViewLock(this.is2DViewLocked);
+        }
+        
+        // Update visual indicator
+        this.update2DViewLockIndicator();
+        
+        // Log the change
+        const status = this.is2DViewLocked ? 'enabled' : 'disabled';
+        this.log(`2D view lock ${status}`, 'info');
+    }
+    
+    /**
+     * Update 2D view lock visual indicator
+     */
+    update2DViewLockIndicator() {
+        let lockIndicator = document.getElementById('view-lock-indicator');
+        
+        if (this.is2DViewLocked) {
+            // Show lock indicator if it doesn't exist
+            if (!lockIndicator) {
+                this.create2DViewLockIndicator();
+            } else {
+                lockIndicator.style.display = 'flex';
+            }
+        } else {
+            // Hide lock indicator
+            if (lockIndicator) {
+                lockIndicator.style.display = 'none';
+            }
+        }
+    }
+    
+    
+    /**
+     * Create 2D view lock visual indicator
+     */
+    create2DViewLockIndicator() {
+        const lockIndicator = document.createElement('div');
+        lockIndicator.id = 'view-lock-indicator';
+        lockIndicator.className = 'view-lock-indicator';
+        lockIndicator.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        `;
+        lockIndicator.title = '2D View Locked (Press L to unlock)';
+        
+        // Style the indicator - positioned under the settings menu
+        lockIndicator.style.cssText = `
+            position: fixed;
+            top: calc(32px + 40px + 8px);
+            right: 32px;
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            z-index: 150;
+            user-select: none;
+            pointer-events: none;
+        `;
+        
+        // Add to document body since using fixed positioning
+        document.body.appendChild(lockIndicator);
     }
 }
 

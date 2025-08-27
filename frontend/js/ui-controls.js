@@ -306,6 +306,10 @@ class BGCSUIControls {
                     this.selectAllEntities();
                 }
                 break;
+            case 'KeyL':
+                // Let the main app handle the L key for view lock
+                // This is already handled in app.js
+                break;
         }
     }
     
@@ -900,6 +904,7 @@ class BGCSUIControls {
     
     handleCameraOrbit(deltaX, deltaY) {
         // Unified camera orbit - works from any orientation
+        // The camera manager will handle 2D view lock restrictions internally
         this.cameraManager.handleOrbit(deltaX, deltaY);
     }
     

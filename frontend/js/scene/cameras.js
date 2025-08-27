@@ -32,6 +32,9 @@ class BGCSCameraManager {
         // Top-down reference (for Space key reset)
         this.topDownPhi = 0.01; // Small value instead of 0 to avoid singularity
         
+        // 2D View Lock State
+        this.is2DViewLocked = false;
+        
     }
     
     /**
@@ -92,12 +95,22 @@ class BGCSCameraManager {
      * Handle orbit/tilt action (right mouse drag)
      */
     handleOrbit(deltaX, deltaY) {
-        // Invert directions for natural orbiting
-        this.spherical.theta += deltaX * this.mouseSensitivity; // Drag right = orbit right
-        this.spherical.phi -= deltaY * this.mouseSensitivity;   // Drag up = tilt up
+        // Check if 2D view is locked and camera is in top-down orientation
+        const isTopDown = this.spherical.phi < 0.3; // Within 17 degrees of straight down
         
-        // Clamp phi to prevent camera flipping
-        this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
+        if (this.is2DViewLocked && isTopDown) {
+            // When locked in 2D view, only allow horizontal rotation (theta), no tilt (phi)
+            this.spherical.theta += deltaX * this.mouseSensitivity; // Drag right = orbit right
+            // Don't modify phi when locked in 2D view
+        } else {
+            // Normal orbit behavior
+            // Invert directions for natural orbiting
+            this.spherical.theta += deltaX * this.mouseSensitivity; // Drag right = orbit right
+            this.spherical.phi -= deltaY * this.mouseSensitivity;   // Drag up = tilt up
+            
+            // Clamp phi to prevent camera flipping
+            this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
+        }
         
         this.updateCameraPosition();
     }
@@ -232,6 +245,15 @@ class BGCSCameraManager {
      * Set view (legacy compatibility) - now just animates to orientation
      */
     setView(viewType) {
+        // Check if trying to switch away from top view while locked
+        if (this.is2DViewLocked && viewType === '3d') {
+            // Prevent switching to 3D view when locked
+            if (window.bgcsApp) {
+                window.bgcsApp.log('Cannot switch to 3D view: 2D view is locked (Press L to unlock)', 'warning');
+            }
+            return false;
+        }
+        
         if (viewType === 'top') {
             this.resetToTopDown();
         } else if (viewType === '3d') {
@@ -321,6 +343,28 @@ class BGCSCameraManager {
     }
     
     /**
+     * Set 2D view lock state
+     */
+    set2DViewLock(locked) {
+        this.is2DViewLocked = locked;
+        
+        if (locked) {
+            // When locking, ensure we're in top-down view
+            const isTopDown = this.spherical.phi < 0.3;
+            if (!isTopDown) {
+                this.resetToTopDown();
+            }
+        }
+    }
+    
+    /**
+     * Get 2D view lock state
+     */
+    is2DViewLocked() {
+        return this.is2DViewLocked;
+    }
+    
+    /**
      * Get camera information for debugging
      */
     getCameraInfo() {
@@ -335,7 +379,8 @@ class BGCSCameraManager {
             },
             target: { ...this.cameraTarget },
             spherical: { ...this.spherical },
-            isTopDown: isTopDown
+            isTopDown: isTopDown,
+            is2DViewLocked: this.is2DViewLocked
         };
     }
 }
