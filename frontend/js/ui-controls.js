@@ -76,9 +76,23 @@ class BGCSUIControls {
             this.handleMouseUp(e);
         });
         
-        // Mouse move - update interaction
+        // Mouse move - update interaction (also listen on document for selection extending beyond canvas)
         this.canvas.addEventListener('mousemove', (e) => {
             this.handleMouseMove(e);
+        });
+        
+        // Listen on document for mouse move during box selection to extend beyond canvas
+        document.addEventListener('mousemove', (e) => {
+            if (this.isBoxSelecting) {
+                this.handleMouseMove(e);
+            }
+        });
+        
+        // Listen on document for mouse up during box selection
+        document.addEventListener('mouseup', (e) => {
+            if (this.isBoxSelecting) {
+                this.handleMouseUp(e);
+            }
         });
         
         // Mouse wheel - zoom or modifier actions
@@ -520,16 +534,15 @@ class BGCSUIControls {
             this.createSelectionRectangle();
         }
         
-        // Initialize rectangle at canvas-relative coordinates
-        const canvasRect = this.canvas.getBoundingClientRect();
-        const relativeX = e.clientX - canvasRect.left;
-        const relativeY = e.clientY - canvasRect.top;
-        
-        this.selectionRectangle.style.left = relativeX + 'px';
-        this.selectionRectangle.style.top = relativeY + 'px';
+        // Use screen coordinates directly (not canvas-relative)
+        this.selectionRectangle.style.left = e.clientX + 'px';
+        this.selectionRectangle.style.top = e.clientY + 'px';
         this.selectionRectangle.style.width = '0px';
         this.selectionRectangle.style.height = '0px';
         this.selectionRectangle.style.display = 'block';
+        
+        // Disable pointer events on UI panels during selection
+        this.disableUIInteraction();
     }
     
     /**
@@ -545,18 +558,11 @@ class BGCSUIControls {
             this.createSelectionRectangle();
         }
         
-        // Convert to canvas-relative coordinates
-        const canvasRect = this.canvas.getBoundingClientRect();
-        const startX = this.boxSelectStart.x - canvasRect.left;
-        const startY = this.boxSelectStart.y - canvasRect.top;
-        const endX = this.boxSelectEnd.x - canvasRect.left;
-        const endY = this.boxSelectEnd.y - canvasRect.top;
-        
-        // Update rectangle dimensions and position
-        const minX = Math.min(startX, endX);
-        const minY = Math.min(startY, endY);
-        const width = Math.abs(endX - startX);
-        const height = Math.abs(endY - startY);
+        // Use screen coordinates directly (allows extending over UI panels)
+        const minX = Math.min(this.boxSelectStart.x, this.boxSelectEnd.x);
+        const minY = Math.min(this.boxSelectStart.y, this.boxSelectEnd.y);
+        const width = Math.abs(this.boxSelectEnd.x - this.boxSelectStart.x);
+        const height = Math.abs(this.boxSelectEnd.y - this.boxSelectStart.y);
         
         this.selectionRectangle.style.left = minX + 'px';
         this.selectionRectangle.style.top = minY + 'px';
@@ -570,6 +576,9 @@ class BGCSUIControls {
      */
     endBoxSelection() {
         this.isBoxSelecting = false;
+        
+        // Re-enable UI interactions
+        this.enableUIInteraction();
         
         // Hide visual indicator
         if (this.selectionRectangle) {
@@ -604,8 +613,8 @@ class BGCSUIControls {
                 z: mesh.position.z
             };
             
-            // Get entity screen position
-            const screenPos = this.worldToScreen(worldPosition);
+            // Get entity screen position (using absolute screen coordinates)
+            const screenPos = this.worldToScreenAbsolute(worldPosition);
             if (screenPos && 
                 screenPos.x >= minX && screenPos.x <= maxX &&
                 screenPos.y >= minY && screenPos.y <= maxY) {
@@ -633,23 +642,28 @@ class BGCSUIControls {
         this.selectionRectangle = document.createElement('div');
         this.selectionRectangle.className = 'bgcs-selection-rectangle';
         this.selectionRectangle.style.cssText = `
-            position: absolute;
+            position: fixed;
             pointer-events: none;
             border: 1px solid #888888;
             border-style: solid;
             background-color: rgba(128, 128, 128, 0.15);
-            z-index: 1000;
+            z-index: 1;
             display: none;
             box-sizing: border-box;
         `;
         
-        // Add to canvas container or body
-        const canvasContainer = this.canvas.parentElement || document.body;
-        canvasContainer.appendChild(this.selectionRectangle);
+        // Add to canvas container to inherit its stacking context
+        const canvasContainer = document.querySelector('.canvas-container');
+        if (canvasContainer) {
+            canvasContainer.appendChild(this.selectionRectangle);
+        } else {
+            // Fallback to document body
+            document.body.appendChild(this.selectionRectangle);
+        }
     }
     
     /**
-     * Convert world position to screen coordinates
+     * Convert world position to screen coordinates (canvas-relative)
      */
     worldToScreen(worldPosition) {
         if (!window.bgcsCameras || !this.renderer3D) return null;
@@ -664,7 +678,35 @@ class BGCSUIControls {
             // Project to screen coordinates
             vector.project(camera);
             
-            // Convert to screen pixels (use absolute coordinates like mouse events)
+            // Convert to screen pixels (canvas-relative)
+            const canvasRect = this.canvas.getBoundingClientRect();
+            const screenX = (vector.x + 1) * canvasRect.width / 2;
+            const screenY = (-vector.y + 1) * canvasRect.height / 2;
+            
+            return { x: screenX, y: screenY };
+        } catch (error) {
+            console.warn('Error converting world to screen coordinates:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Convert world position to absolute screen coordinates
+     */
+    worldToScreenAbsolute(worldPosition) {
+        if (!window.bgcsCameras || !this.renderer3D) return null;
+        
+        try {
+            const camera = window.bgcsCameras.getCurrentCamera();
+            if (!camera) return null;
+            
+            // Create vector from world position
+            const vector = new THREE.Vector3(worldPosition.x, worldPosition.y, worldPosition.z);
+            
+            // Project to screen coordinates
+            vector.project(camera);
+            
+            // Convert to absolute screen pixels (same as mouse events)
             const canvasRect = this.canvas.getBoundingClientRect();
             const screenX = (vector.x + 1) * canvasRect.width / 2 + canvasRect.left;
             const screenY = (-vector.y + 1) * canvasRect.height / 2 + canvasRect.top;
@@ -674,6 +716,40 @@ class BGCSUIControls {
             console.warn('Error converting world to screen coordinates:', error);
             return null;
         }
+    }
+    
+    /**
+     * Disable UI interaction during box selection
+     */
+    disableUIInteraction() {
+        // Disable pointer events on UI panels
+        const uiPanels = [
+            document.querySelector('.sidebar-left'),
+            document.querySelector('.sidebar-right'),
+            document.querySelector('.console'),
+            document.querySelector('.floating-options'),
+            document.querySelector('.floating-control-panel')
+        ];
+        
+        uiPanels.forEach(panel => {
+            if (panel) {
+                panel.style.pointerEvents = 'none';
+                panel.setAttribute('data-selection-disabled', 'true');
+            }
+        });
+    }
+    
+    /**
+     * Re-enable UI interaction after box selection
+     */
+    enableUIInteraction() {
+        // Re-enable pointer events on UI panels
+        const disabledPanels = document.querySelectorAll('[data-selection-disabled="true"]');
+        
+        disabledPanels.forEach(panel => {
+            panel.style.pointerEvents = '';
+            panel.removeAttribute('data-selection-disabled');
+        });
     }
     
     /**
