@@ -10,7 +10,7 @@ class BGCSSensorOverlayManager {
         
         // Feature flags
         this.globalEnabled = true;
-        this.footprintEnabled = true;
+        this.footprintEnabled = false;
         
         // Overlay renderers
         this.footprintRenderer = null;
