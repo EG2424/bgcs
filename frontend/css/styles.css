@@ -1504,7 +1504,7 @@ body {
 }
 
 /* Nearly Invisible Floating Console - Hidden by Default */
-.console {
+.console:not(.spine-slot) {
     position: fixed;
     bottom: var(--padding-lg);
     left: var(--padding-lg);
@@ -2104,13 +2104,14 @@ input:focus,
     color: var(--accent-primary);
 }
 
+
 .spine-slot svg {
     transition: all var(--transition-fast);
 }
 
-.spine-slot:not(.active) {
-    color: rgba(255, 255, 255, 0.4);
-}
+
+
+
 
 /* Right Dock Panel */
 .right-dock {
