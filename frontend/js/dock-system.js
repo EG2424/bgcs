@@ -23,11 +23,11 @@ class DockSystem {
     }
     
     setupEventListeners() {
-        // Tab clicks
-        const tabs = this.dock.querySelectorAll('.dock-tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const tabName = tab.getAttribute('data-tab');
+        // Spine slot clicks
+        const spineSlots = document.querySelectorAll('.spine-slot');
+        spineSlots.forEach(slot => {
+            slot.addEventListener('click', (e) => {
+                const tabName = slot.getAttribute('data-tab');
                 this.switchTab(tabName);
             });
         });
@@ -99,6 +99,9 @@ class DockSystem {
         } else {
             this.currentTab = 'actions';
         }
+        
+        // Setup console controls
+        this.setupConsoleListeners();
     }
     
     switchTab(tabName) {
@@ -111,10 +114,10 @@ class DockSystem {
         // Update current tab
         this.currentTab = tabName;
         
-        // Update tab states
-        const tabs = this.dock.querySelectorAll('.dock-tab');
-        tabs.forEach(tab => {
-            tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
+        // Update spine slot states
+        const spineSlots = document.querySelectorAll('.spine-slot');
+        spineSlots.forEach(slot => {
+            slot.classList.toggle('active', slot.getAttribute('data-tab') === tabName);
         });
         
         // Update panel states
@@ -133,11 +136,11 @@ class DockSystem {
         this.isExpanded = true;
         this.dock.classList.add('expanded');
         
-        // Activate current tab
-        const activeTab = this.dock.querySelector(`[data-tab="${this.currentTab}"]`);
+        // Activate current spine slot and panel
+        const activeSpineSlot = document.querySelector(`.spine-slot[data-tab="${this.currentTab}"]`);
         const activePanel = this.dock.querySelector(`[data-panel="${this.currentTab}"]`);
         
-        if (activeTab) activeTab.classList.add('active');
+        if (activeSpineSlot) activeSpineSlot.classList.add('active');
         if (activePanel) activePanel.classList.add('active');
     }
     
@@ -147,11 +150,11 @@ class DockSystem {
         this.isExpanded = false;
         this.dock.classList.remove('expanded');
         
-        // Deactivate all tabs and panels
-        const tabs = this.dock.querySelectorAll('.dock-tab');
+        // Deactivate all spine slots and panels
+        const spineSlots = document.querySelectorAll('.spine-slot');
         const panels = this.dock.querySelectorAll('.dock-panel');
         
-        tabs.forEach(tab => tab.classList.remove('active'));
+        spineSlots.forEach(slot => slot.classList.remove('active'));
         panels.forEach(panel => panel.classList.remove('active'));
     }
     
@@ -198,11 +201,10 @@ class DockSystem {
         this.updateCameraPanel(selectedEntities);
         this.updateLogPanel(selectedCount);
         
-        // Auto-expand/collapse based on selection
+        // Auto-expand/collapse based on selection - INSTANT
         if (selectedCount > 0 && !this.isExpanded) {
             this.switchTab(this.currentTab || 'actions');
         } else if (selectedCount === 0 && this.isExpanded) {
-            // Keep same behavior as current system
             this.collapse();
         }
     }
@@ -335,6 +337,36 @@ class DockSystem {
             const logsContent = document.getElementById('logs-content');
             if (logsContent) {
                 logsContent.innerHTML = '';
+            }
+        }
+    }
+    
+    setupConsoleListeners() {
+        const clearConsoleBtn = document.getElementById('clear-console');
+        const toggleConsoleBtn = document.getElementById('toggle-console');
+        
+        if (clearConsoleBtn) {
+            clearConsoleBtn.addEventListener('click', () => {
+                this.clearConsole();
+            });
+        }
+        
+        if (toggleConsoleBtn) {
+            toggleConsoleBtn.addEventListener('click', () => {
+                this.collapse();
+            });
+        }
+    }
+    
+    clearConsole() {
+        // Call the main app's clearConsole method if available
+        if (window.bgcsApp && window.bgcsApp.clearConsole) {
+            window.bgcsApp.clearConsole();
+        } else {
+            // Fallback: clear directly
+            const consoleContent = document.getElementById('console-content');
+            if (consoleContent) {
+                consoleContent.innerHTML = '';
             }
         }
     }

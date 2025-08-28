@@ -1417,6 +1417,11 @@ class BGCSApp {
      * Update console display
      */
     updateConsoleDisplay() {
+        // Try to get console content element if not cached
+        if (!this.elements.consoleContent) {
+            this.elements.consoleContent = document.getElementById('console-content');
+        }
+        
         if (!this.elements.consoleContent) return;
         
         const html = this.console.entries.map(entry => {
