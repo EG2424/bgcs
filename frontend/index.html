@@ -173,60 +173,159 @@
             </div>
         </div>
 
-        <!-- Floating Control Panel -->
-        <div class="floating-control-panel" id="controls-panel">
-            <div class="control-panel-header">
-                <h4>Control Selected</h4>
-                <span class="selected-count" id="floating-selected-count">0</span>
+        <!-- Right Dock -->
+        <div class="right-dock" id="right-dock">
+            <!-- Dock Tabs -->
+            <div class="dock-tabs">
+                <button class="dock-tab" data-tab="camera" title="Camera">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </button>
+                <button class="dock-tab" data-tab="actions" title="Actions">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="3,11 22,2 13,21 11,13 3,11"/>
+                    </svg>
+                </button>
+                <button class="dock-tab" data-tab="logs" title="Logs">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                    </svg>
+                </button>
             </div>
-            
-            <div class="control-panel-content">
-                <div class="mode-buttons-compact">
-                    <button class="mode-btn-compact" data-mode="random_search" title="Random Search">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            <polyline points="3.29,7 12,12 20.71,7"/>
-                            <line x1="12" y1="22" x2="12" y2="12"/>
-                        </svg>
-                        <span>Search</span>
-                    </button>
-                    <button class="mode-btn-compact" data-mode="follow_target" title="Follow Target">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="m12 1 0 6m0 6 0 6m11-7-6 0m-6 0-6 0"/>
-                        </svg>
-                        <span>Target</span>
-                    </button>
-                    <button class="mode-btn-compact" data-mode="follow_teammate" title="Follow Teammate">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="m22 21-3-3m-3-3 3 3"/>
-                        </svg>
-                        <span>Team</span>
-                    </button>
-                    <button class="mode-btn-compact" data-mode="waypoint_mode" title="Waypoint Mode">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="3,11 22,2 13,21 11,13 3,11"/>
-                        </svg>
-                        <span>Waypoint</span>
-                    </button>
-                    <button class="mode-btn-compact" data-mode="kamikaze" title="Kamikaze">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="22,2 15,9"/>
-                            <path d="m9 22 6-6"/>
-                            <path d="m2 15 6-6"/>
-                            <circle cx="11" cy="11" r="2"/>
-                        </svg>
-                        <span>Strike</span>
-                    </button>
-                    <button class="mode-btn-compact" data-mode="hold_position" title="Hold Position">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="12" cy="12" r="1"/>
-                        </svg>
-                        <span>Hold</span>
-                    </button>
+
+            <!-- Dock Panels -->
+            <div class="dock-panel" id="camera-panel" data-panel="camera">
+                <div class="panel-header">
+                    <h4>Camera Feeds</h4>
+                    <span class="panel-subtitle" id="camera-entity-count">No selection</span>
+                </div>
+                <div class="panel-content">
+                    <div class="camera-viewport" id="camera-viewport">
+                        <div class="camera-feed-container" id="camera-feed-container">
+                            <!-- Camera feeds will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dock-panel" id="actions-panel" data-panel="actions">
+                <div class="panel-header">
+                    <h4>Actions</h4>
+                    <span class="panel-subtitle" id="actions-selected-count">No selection</span>
+                </div>
+                <div class="panel-content">
+                    <div class="action-buttons">
+                        <button class="action-btn takeoff-btn" id="takeoff-btn" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                                <path d="M2 17L12 22L22 17"/>
+                            </svg>
+                            <span>Takeoff</span>
+                            <span class="action-count" id="takeoff-count"></span>
+                        </button>
+                        <button class="action-btn land-btn" id="land-btn" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22L2 17L12 12L22 17L12 22Z"/>
+                                <path d="M2 7L12 12L22 7"/>
+                            </svg>
+                            <span>Land</span>
+                            <span class="action-count" id="land-count"></span>
+                        </button>
+                    </div>
+                    
+                    <!-- Existing mode buttons moved here -->
+                    <div class="mode-buttons-section">
+                        <h5>Flight Modes</h5>
+                        <div class="mode-buttons-compact">
+                            <button class="mode-btn-compact" data-mode="random_search" title="Random Search">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <polyline points="3.29,7 12,12 20.71,7"/>
+                                    <line x1="12" y1="22" x2="12" y2="12"/>
+                                </svg>
+                                <span>Search</span>
+                            </button>
+                            <button class="mode-btn-compact" data-mode="follow_target" title="Follow Target">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="m12 1 0 6m0 6 0 6m11-7-6 0m-6 0-6 0"/>
+                                </svg>
+                                <span>Target</span>
+                            </button>
+                            <button class="mode-btn-compact" data-mode="follow_teammate" title="Follow Teammate">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="m22 21-3-3m-3-3 3 3"/>
+                                </svg>
+                                <span>Team</span>
+                            </button>
+                            <button class="mode-btn-compact" data-mode="waypoint_mode" title="Waypoint Mode">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="3,11 22,2 13,21 11,13 3,11"/>
+                                </svg>
+                                <span>Waypoint</span>
+                            </button>
+                            <button class="mode-btn-compact" data-mode="kamikaze" title="Kamikaze">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="22,2 15,9"/>
+                                    <path d="m9 22 6-6"/>
+                                    <path d="m2 15 6-6"/>
+                                    <circle cx="11" cy="11" r="2"/>
+                                </svg>
+                                <span>Strike</span>
+                            </button>
+                            <button class="mode-btn-compact" data-mode="hold_position" title="Hold Position">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="12" cy="12" r="1"/>
+                                </svg>
+                                <span>Hold</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dock-panel" id="logs-panel" data-panel="logs">
+                <div class="panel-header">
+                    <h4>Telemetry Logs</h4>
+                    <div class="logs-controls">
+                        <button class="btn-icon btn-small" id="pause-logs" title="Pause">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="6" y="4" width="4" height="16"/>
+                                <rect x="14" y="4" width="4" height="16"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon btn-small" id="clear-logs" title="Clear">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6H5H21"/>
+                                <path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6V20C19 20.5523 18.4477 21 18 21H6C5.44772 21 5 20.5523 5 20V6H19Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="logs-filters">
+                        <div class="filter-chips" id="log-filter-chips">
+                            <button class="filter-chip active" data-filter="all">ALL</button>
+                            <button class="filter-chip" data-filter="sys">SYS</button>
+                            <button class="filter-chip" data-filter="fcu">FCU</button>
+                            <button class="filter-chip" data-filter="mission">MISSION</button>
+                            <button class="filter-chip" data-filter="link">LINK</button>
+                            <button class="filter-chip" data-filter="warn">WARN</button>
+                            <button class="filter-chip" data-filter="err">ERR</button>
+                        </div>
+                    </div>
+                    <div class="logs-content" id="logs-content">
+                        <!-- Log entries will be populated dynamically -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -264,6 +363,8 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <!-- Configuration -->
+    <script src="/static/config.js"></script>
     <!-- Network layer -->
     <script src="/static/js/network/websocket.js"></script>
     <script src="/static/js/entities/manager.js"></script>
@@ -280,6 +381,9 @@
     <!-- Controls -->
     <script src="/static/js/ui-controls.js"></script>
     <script src="/static/js/entity-controls.js"></script>
+    <!-- Dock System -->
+    <script src="/static/js/dock-system.js"></script>
+    <script src="/static/js/telemetry-stubs.js"></script>
     <!-- Main application -->
     <script src="/static/js/app.js"></script>
 </body>
