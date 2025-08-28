@@ -1,5 +1,6 @@
 /* BGCS Frontend Styles - Apple-inspired Dark Theme with Frosted Glass */
 
+
 /* CSS Variables */
 :root {
     /* Base Colors */
@@ -7,23 +8,23 @@
     --bg-secondary: #1a1a1a;
     --bg-tertiary: #2a2a2a;
     
-    /* Extremely Transparent System */
-    --glass-panel-dark: rgba(15, 15, 15, 0.05);       /* Almost invisible */
-    --glass-panel-light: rgba(35, 35, 35, 0.05);      /* Almost invisible */
-    --glass-panel-overlay: rgba(20, 20, 20, 0.03);    /* Nearly transparent */
-    --glass-panel-secondary: rgba(25, 25, 25, 0.04);  /* Nearly transparent */
-    --glass-panel-subtle: rgba(30, 30, 30, 0.02);     /* Barely there */
+    /* Enhanced Glass System */
+    --glass-panel-dark: rgba(15, 15, 15, 0.35);       /* Moderate visibility */
+    --glass-panel-light: rgba(35, 35, 35, 0.35);      /* Moderate visibility */
+    --glass-panel-overlay: rgba(20, 20, 20, 0.30);    /* Moderate visibility */
+    --glass-panel-secondary: rgba(25, 25, 25, 0.30);  /* Moderate visibility */
+    --glass-panel-subtle: rgba(30, 30, 30, 0.25);     /* Moderate visibility */
     
-    /* Glass Border System - Nearly Invisible */
-    --glass-border-primary: rgba(255, 255, 255, 0.03); /* Nearly invisible */
-    --glass-border-secondary: rgba(255, 255, 255, 0.02); /* Nearly invisible */
-    --glass-border-subtle: rgba(255, 255, 255, 0.01);  /* Barely there */
+    /* Enhanced Glass Border System */
+    --glass-border-primary: rgba(255, 255, 255, 0.15);   /* Visible borders */
+    --glass-border-secondary: rgba(255, 255, 255, 0.10); /* Subtle borders */
+    --glass-border-subtle: rgba(255, 255, 255, 0.05);    /* Light borders */
     
-    /* Minimal Blur System */
-    --blur-heavy: 8px;         /* Minimal blur */
-    --blur-medium: 5px;        /* Very light blur */
-    --blur-light: 3px;         /* Almost no blur */
-    --blur-subtle: 2px;        /* Barely any blur */
+    /* Enhanced Blur System */
+    --blur-heavy: 12px;        /* Stronger backdrop blur */
+    --blur-medium: 8px;        /* Medium backdrop blur */
+    --blur-light: 6px;         /* Light backdrop blur */
+    --blur-subtle: 4px;        /* Subtle backdrop blur */
     
     /* System Blue Accent - Enhanced for glass */
     --accent-primary: #007AFF;
@@ -222,10 +223,11 @@ body {
     width: var(--sidebar-width);
     max-height: calc(100vh - 120px);
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    -webkit-backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-lg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border-subtle) inset;
     overflow: hidden;
     z-index: 10; /* Base sidebar layer */
     scrollbar-width: thin;
@@ -241,6 +243,21 @@ body {
 .sidebar-left {
     top: 80px;
     left: 0;
+}
+
+/* Permanent backdrop gradient overlay for panels */
+.sidebar-left::before,
+.sidebar-right::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, 
+        rgba(0, 0, 0, 0.1) 0%, 
+        rgba(0, 0, 0, 0.05) 50%, 
+        rgba(0, 0, 0, 0.08) 100%);
+    pointer-events: none;
+    z-index: -1;
+    border-radius: var(--radius-lg);
 }
 
 /* Floating Control Panel */
@@ -529,8 +546,10 @@ body {
 }
 
 .group-item:hover {
-    background: var(--glass-panel-light);
+    background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
+    backdrop-filter: blur(var(--blur-light));
+    -webkit-backdrop-filter: blur(var(--blur-light));
 }
 
 .group-item.selected {
@@ -1281,8 +1300,10 @@ body {
 }
 
 .entity-item:hover {
-    background: var(--glass-panel-light);
+    background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
+    backdrop-filter: blur(var(--blur-light));
+    -webkit-backdrop-filter: blur(var(--blur-light));
 }
 
 .entity-item.selected {
@@ -2042,7 +2063,7 @@ input:focus,
     backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
     -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
     border-left: 1px solid rgba(255, 255, 255, 0.02);
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2070,9 +2091,11 @@ input:focus,
 }
 
 .spine-slot:hover {
-    background: var(--glass-panel-light);
+    background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-secondary);
     color: var(--text-secondary);
+    backdrop-filter: blur(var(--blur-light));
+    -webkit-backdrop-filter: blur(var(--blur-light));
 }
 
 .spine-slot.active {
@@ -2114,10 +2137,11 @@ input:focus,
     bottom: 0;
     width: 280px;
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    -webkit-backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-lg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border-subtle) inset;
     display: none;
     flex-direction: column;
     overflow: hidden;
@@ -2125,6 +2149,20 @@ input:focus,
 
 .dock-panel.active {
     display: flex;
+}
+
+/* Permanent backdrop gradient overlay for dock panels */
+.dock-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, 
+        rgba(0, 0, 0, 0.1) 0%, 
+        rgba(0, 0, 0, 0.05) 50%, 
+        rgba(0, 0, 0, 0.08) 100%);
+    pointer-events: none;
+    z-index: -1;
+    border-radius: var(--radius-lg);
 }
 
 .panel-header {
@@ -2200,6 +2238,21 @@ input:focus,
 .dock-panel::-webkit-scrollbar-thumb:hover {
     background: var(--glass-border-primary);
     box-shadow: 0 0 6px var(--accent-glass);
+}
+
+/* Left-side scrollbars for right dock panels */
+.dock-panel,
+.dock-panel .console-content,
+.dock-panel .logs-content,
+.dock-panel .camera-viewport {
+    direction: rtl;
+}
+
+.dock-panel > *,
+.dock-panel .console-content > *,
+.dock-panel .logs-content > *,
+.dock-panel .camera-viewport > * {
+    direction: ltr;
 }
 
 .camera-feed-container {
@@ -2292,8 +2345,10 @@ input:focus,
 }
 
 .action-btn:hover:not(:disabled) {
-    background: var(--glass-panel-overlay);
+    background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
+    backdrop-filter: blur(var(--blur-light));
+    -webkit-backdrop-filter: blur(var(--blur-light));
 }
 
 .action-btn:disabled {
@@ -2509,4 +2564,5 @@ input:focus,
     .dock-panel {
         width: 230px;
     }
+    
 }
