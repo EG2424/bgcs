@@ -2556,6 +2556,100 @@ input:focus,
     display: block !important; /* Override old console display:none */
 }
 
+/* Military Action Sliders */
+.action-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-md);
+}
+
+.military-action-slider {
+    position: relative;
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--glass-border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--padding-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.military-action-slider.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.slider-track {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+}
+
+.slider-rail {
+    position: relative;
+    flex: 1;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) inset;
+}
+
+.slider-thumb {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    height: 32px;
+    padding: 0 var(--padding-xs);
+    min-width: 80px;
+    background: rgba(60, 60, 60, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--padding-xs);
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.slider-thumb:active {
+    cursor: grabbing;
+}
+
+.slider-thumb svg {
+    opacity: 0.6;
+}
+
+/* Takeoff Execute State */
+.takeoff-slider .slider-thumb.execute {
+    background: rgba(0, 255, 100, 0.2);
+    border-color: #00ff64;
+    color: #00ff64;
+    box-shadow: 0 0 8px rgba(0, 255, 100, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.takeoff-slider .slider-thumb.execute svg {
+    opacity: 1;
+}
+
+/* Land Execute State */
+.land-slider .slider-thumb.execute {
+    background: rgba(255, 140, 0, 0.2);
+    border-color: #ff8c00;
+    color: #ff8c00;
+    box-shadow: 0 0 8px rgba(255, 140, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.land-slider .slider-thumb.execute svg {
+    opacity: 1;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1200px) {
     .right-dock.expanded {

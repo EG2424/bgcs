@@ -42,19 +42,185 @@ class DockSystem {
     }
     
     setupActionListeners() {
-        const takeoffBtn = document.getElementById('takeoff-btn');
-        const landBtn = document.getElementById('land-btn');
+        // Setup military action sliders
+        this.setupMilitarySliders();
+    }
+    
+    setupMilitarySliders() {
+        const takeoffSlider = document.getElementById('takeoff-slider');
+        const landSlider = document.getElementById('land-slider');
         
-        if (takeoffBtn) {
-            takeoffBtn.addEventListener('click', () => {
-                this.executeAction('takeoff');
-            });
+        if (takeoffSlider) {
+            this.initializeMilitarySlider(takeoffSlider, 'takeoff');
         }
         
-        if (landBtn) {
-            landBtn.addEventListener('click', () => {
-                this.executeAction('land');
-            });
+        if (landSlider) {
+            this.initializeMilitarySlider(landSlider, 'land');
+        }
+    }
+    
+    initializeMilitarySlider(sliderContainer, action) {
+        const thumb = sliderContainer.querySelector('.slider-thumb');
+        const rail = sliderContainer.querySelector('.slider-rail');
+        
+        if (!thumb || !rail) return;
+        
+        let isDragging = false;
+        let mouseOffset = 0;
+        
+        const self = this;
+        
+        // Initialize position
+        thumb.style.left = '0px';
+        thumb.style.transition = '';
+        
+        thumb.addEventListener('mousedown', (e) => {
+            if (sliderContainer.classList.contains('disabled')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            isDragging = true;
+            
+            // Calculate offset from mouse to thumb left edge
+            const thumbRect = thumb.getBoundingClientRect();
+            mouseOffset = e.clientX - thumbRect.left;
+            
+            // Disable transitions during drag
+            thumb.style.transition = 'none';
+            document.body.style.userSelect = 'none';
+            thumb.style.cursor = 'grabbing';
+        });
+        
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const railRect = rail.getBoundingClientRect();
+            const thumbWidth = thumb.offsetWidth;
+            const maxLeft = railRect.width - thumbWidth - 4;
+            
+            // Calculate new position based on mouse position minus offset
+            let newLeft = (e.clientX - railRect.left) - mouseOffset;
+            
+            // Constrain to rail bounds
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            
+            // Apply position immediately
+            thumb.style.left = newLeft + 'px';
+            
+            // Check if at execute position (75% to the right for easier trigger)
+            const progress = newLeft / maxLeft;
+            
+            // Update slider color gradually based on progress
+            self.updateSliderColors(thumb, progress, action);
+            
+            if (progress >= 0.75) {
+                thumb.classList.add('execute');
+            } else {
+                thumb.classList.remove('execute');
+            }
+        };
+        
+        const handleMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            document.body.style.userSelect = '';
+            thumb.style.cursor = 'grab';
+            
+            const currentLeft = parseInt(thumb.style.left) || 2;
+            const railRect = rail.getBoundingClientRect();
+            const thumbWidth = thumb.offsetWidth;
+            const maxLeft = railRect.width - thumbWidth - 4;
+            const progress = currentLeft / maxLeft;
+            
+            if (progress >= 0.75) {
+                // Execute action
+                self.executeAction(action);
+            }
+            
+            // Re-enable transitions and reset
+            thumb.style.transition = 'all 0.3s ease';
+            setTimeout(() => {
+                thumb.style.left = '0px';
+                thumb.classList.remove('execute');
+                // Reset colors to default
+                self.resetSliderColors(thumb);
+            }, 100);
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    updateSliderColors(thumb, progress, action) {
+        // Clamp progress between 0 and 1
+        progress = Math.max(0, Math.min(1, progress));
+        
+        // Define original colors
+        const originalBg = { r: 60, g: 60, b: 60, a: 0.9 };
+        const originalBorder = { r: 255, g: 255, b: 255, a: 0.2 };
+        const originalText = { r: 255, g: 255, b: 255, a: 0.6 };
+        
+        // Define target colors based on action type
+        let targetBg, targetBorder, targetText;
+        
+        if (action === 'takeoff') {
+            // Green target for takeoff
+            targetBg = { r: 0, g: 255, b: 100, a: 0.4 };
+            targetBorder = { r: 0, g: 255, b: 100, a: 1.0 };
+            targetText = { r: 0, g: 255, b: 100, a: 1.0 };
+        } else if (action === 'land') {
+            // Orange target for land
+            targetBg = { r: 255, g: 140, b: 0, a: 0.4 };
+            targetBorder = { r: 255, g: 140, b: 0, a: 1.0 };
+            targetText = { r: 255, g: 140, b: 0, a: 1.0 };
+        }
+        
+        // Interpolate colors based on progress
+        const mixedBg = {
+            r: Math.round(originalBg.r + (targetBg.r - originalBg.r) * progress),
+            g: Math.round(originalBg.g + (targetBg.g - originalBg.g) * progress),
+            b: Math.round(originalBg.b + (targetBg.b - originalBg.b) * progress),
+            a: originalBg.a + (targetBg.a - originalBg.a) * progress
+        };
+        
+        const mixedBorder = {
+            r: Math.round(originalBorder.r + (targetBorder.r - originalBorder.r) * progress),
+            g: Math.round(originalBorder.g + (targetBorder.g - originalBorder.g) * progress),
+            b: Math.round(originalBorder.b + (targetBorder.b - originalBorder.b) * progress),
+            a: originalBorder.a + (targetBorder.a - originalBorder.a) * progress
+        };
+        
+        const mixedText = {
+            r: Math.round(originalText.r + (targetText.r - originalText.r) * progress),
+            g: Math.round(originalText.g + (targetText.g - originalText.g) * progress),
+            b: Math.round(originalText.b + (targetText.b - originalText.b) * progress),
+            a: originalText.a + (targetText.a - originalText.a) * progress
+        };
+        
+        // Apply interpolated colors
+        thumb.style.background = `rgba(${mixedBg.r}, ${mixedBg.g}, ${mixedBg.b}, ${mixedBg.a})`;
+        thumb.style.borderColor = `rgba(${mixedBorder.r}, ${mixedBorder.g}, ${mixedBorder.b}, ${mixedBorder.a})`;
+        thumb.style.color = `rgba(${mixedText.r}, ${mixedText.g}, ${mixedText.b}, ${mixedText.a})`;
+        
+        // Brighten the icon
+        const svg = thumb.querySelector('svg');
+        if (svg) {
+            svg.style.opacity = 0.6 + (progress * 0.4);
+        }
+    }
+    
+    resetSliderColors(thumb) {
+        // Reset to default colors
+        thumb.style.background = '';
+        thumb.style.borderColor = '';
+        thumb.style.color = '';
+        
+        // Reset SVG opacity
+        const svg = thumb.querySelector('svg');
+        if (svg) {
+            svg.style.opacity = '';
         }
     }
     
@@ -217,23 +383,23 @@ class DockSystem {
     }
     
     updateActionButtons(selectedCount) {
-        const takeoffBtn = document.getElementById('takeoff-btn');
-        const landBtn = document.getElementById('land-btn');
+        const takeoffSlider = document.getElementById('takeoff-slider');
+        const landSlider = document.getElementById('land-slider');
         const takeoffCount = document.getElementById('takeoff-count');
         const landCount = document.getElementById('land-count');
         const subtitle = document.getElementById('actions-selected-count');
         
         if (selectedCount > 0) {
-            if (takeoffBtn) takeoffBtn.disabled = false;
-            if (landBtn) landBtn.disabled = false;
+            if (takeoffSlider) takeoffSlider.classList.remove('disabled');
+            if (landSlider) landSlider.classList.remove('disabled');
             
             if (takeoffCount) takeoffCount.textContent = selectedCount;
             if (landCount) landCount.textContent = selectedCount;
             
             if (subtitle) subtitle.textContent = `${selectedCount} selected`;
         } else {
-            if (takeoffBtn) takeoffBtn.disabled = true;
-            if (landBtn) landBtn.disabled = true;
+            if (takeoffSlider) takeoffSlider.classList.add('disabled');
+            if (landSlider) landSlider.classList.add('disabled');
             
             if (takeoffCount) takeoffCount.textContent = '';
             if (landCount) landCount.textContent = '';

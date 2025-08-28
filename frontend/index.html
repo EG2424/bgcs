@@ -227,23 +227,38 @@
                     <span class="panel-subtitle" id="actions-selected-count">No selection</span>
                 </div>
                 <div class="panel-content">
-                    <div class="action-buttons">
-                        <button class="action-btn takeoff-btn" id="takeoff-btn" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-                                <path d="M2 17L12 22L22 17"/>
-                            </svg>
-                            <span>Takeoff</span>
-                            <span class="action-count" id="takeoff-count"></span>
-                        </button>
-                        <button class="action-btn land-btn" id="land-btn" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 22L2 17L12 12L22 17L12 22Z"/>
-                                <path d="M2 7L12 12L22 7"/>
-                            </svg>
-                            <span>Land</span>
-                            <span class="action-count" id="land-count"></span>
-                        </button>
+                    <div class="action-sliders">
+                        <!-- Takeoff Slider -->
+                        <div class="military-action-slider takeoff-slider" id="takeoff-slider">
+                            <div class="slider-track">
+                                <div class="slider-rail">
+                                    <div class="slider-thumb" data-action="takeoff">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                                            <path d="M2 17L12 22L22 17"/>
+                                        </svg>
+                                        <span class="slider-label">TAKEOFF</span>
+                                    </div>
+                                </div>
+                                <span class="action-count" id="takeoff-count"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Land Slider -->
+                        <div class="military-action-slider land-slider" id="land-slider">
+                            <div class="slider-track">
+                                <div class="slider-rail">
+                                    <div class="slider-thumb" data-action="land">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 22L2 17L12 12L22 17L12 22Z"/>
+                                            <path d="M2 7L12 12L22 7"/>
+                                        </svg>
+                                        <span class="slider-label">LAND</span>
+                                    </div>
+                                </div>
+                                <span class="action-count" id="land-count"></span>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Existing mode buttons moved here -->
