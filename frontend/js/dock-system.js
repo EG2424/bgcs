@@ -38,6 +38,9 @@ class DockSystem {
         this.setupActionListeners();
         this.setupLogListeners();
         
+        // Setup collapsible sections
+        this.setupCollapsibleSections();
+        
         // Window resize listener removed - using fixed widths
     }
     
@@ -681,6 +684,28 @@ class DockSystem {
             if (!set2.has(item)) return false;
         }
         return true;
+    }
+    
+    setupCollapsibleSections() {
+        const actionsHeader = document.getElementById('actions-header');
+        const actionsContent = document.getElementById('actions-content');
+        
+        if (!actionsHeader || !actionsContent) return;
+        
+        // Set initial state (expanded by default)
+        let isCollapsed = false;
+        
+        actionsHeader.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            
+            if (isCollapsed) {
+                actionsHeader.classList.add('collapsed');
+                actionsContent.classList.add('collapsed');
+            } else {
+                actionsHeader.classList.remove('collapsed');
+                actionsContent.classList.remove('collapsed');
+            }
+        });
     }
 }
 

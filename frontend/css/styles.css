@@ -2565,11 +2565,11 @@ input:focus,
 
 .military-action-slider {
     position: relative;
-    background: var(--glass-panel-dark);
-    border: 1px solid var(--glass-border-subtle);
-    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    border-radius: 0;
     padding: var(--padding-sm);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    box-shadow: none;
 }
 
 .military-action-slider.disabled {
@@ -2600,14 +2600,14 @@ input:focus,
     top: 0px;
     height: 32px;
     padding: 0 var(--padding-xs);
-    min-width: 80px;
+    width: 90px;
     background: rgba(60, 60, 60, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-sm);
     cursor: grab;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--padding-xs);
     font-family: 'SF Mono', monospace;
     font-size: 10px;
@@ -2624,6 +2624,13 @@ input:focus,
 
 .slider-thumb svg {
     opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.slider-thumb .slider-label {
+    line-height: 14px;
+    display: flex;
+    align-items: center;
 }
 
 /* Takeoff Execute State */
@@ -2648,6 +2655,58 @@ input:focus,
 
 .land-slider .slider-thumb.execute svg {
     opacity: 1;
+}
+
+/* Collapsible Section Styles */
+.actions-section {
+    margin-top: var(--padding-md);
+    border-top: 1px solid var(--glass-border-subtle);
+    padding-top: var(--padding-md);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: var(--padding-xs) 0;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.section-header:hover {
+    color: var(--accent-primary);
+}
+
+.section-header h5 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chevron-icon {
+    transition: transform 0.2s ease;
+    opacity: 0.6;
+}
+
+.section-header.collapsed .chevron-icon {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    max-height: 500px;
+    opacity: 1;
+}
+
+.section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 /* Responsive adjustments */
