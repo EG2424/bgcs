@@ -1419,6 +1419,25 @@ body {
     padding-top: var(--padding-md);
 }
 
+.groups-section .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--padding-md) 0 var(--padding-xs) 0;
+    margin: 0 calc(-1 * var(--padding-lg));
+    padding-left: var(--padding-lg);
+    padding-right: var(--padding-lg);
+}
+
+.groups-section .section-header h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-on-glass);
+    text-transform: none;
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
 .section-header {
     display: flex;
     align-items: center;
