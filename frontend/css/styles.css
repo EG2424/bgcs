@@ -2486,8 +2486,8 @@ input:focus,
     white-space: nowrap;
 }
 
-/* Console Panel */
-.console-content {
+/* Console Panel in Dock */
+.dock-panel .console-content {
     flex: 1;
     overflow-y: auto;
     padding: var(--padding-sm);
@@ -2497,6 +2497,7 @@ input:focus,
     letter-spacing: 0.1px;
     scrollbar-width: thin;
     scrollbar-color: var(--glass-border-secondary) transparent;
+    display: block !important; /* Override old console display:none */
 }
 
 /* Responsive adjustments */

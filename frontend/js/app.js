@@ -53,6 +53,8 @@ class BGCSApp {
             entries: []
         };
         
+        // Initial console messages will be added after initialization
+        
         // Performance tracking
         this.lastStateUpdate = 0;
         this.stateUpdateCount = 0;
@@ -82,6 +84,8 @@ class BGCSApp {
             this.initialized = true;
             this.log('BGCS Ground Control Station initialized', 'info');
             this.log('3D Scene Foundation with terrain loaded successfully', 'success');
+            this.log('Welcome to Baykar Ground Control Station', 'success');
+            this.log('Console system ready - all messages will appear here', 'info');
             
             return true;
         } catch (error) {
@@ -1422,7 +1426,9 @@ class BGCSApp {
             this.elements.consoleContent = document.getElementById('console-content');
         }
         
-        if (!this.elements.consoleContent) return;
+        if (!this.elements.consoleContent) {
+            return;
+        }
         
         const html = this.console.entries.map(entry => {
             return `

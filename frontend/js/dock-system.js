@@ -128,6 +128,13 @@ class DockSystem {
         
         // Expand dock
         this.expand();
+        
+        // If switching to console tab, force update console display
+        if (tabName === 'console' && window.bgcsApp && window.bgcsApp.updateConsoleDisplay) {
+            setTimeout(() => {
+                window.bgcsApp.updateConsoleDisplay();
+            }, 50);
+        }
     }
     
     expand() {
