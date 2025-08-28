@@ -1498,16 +1498,8 @@ class BGCSApp {
         entityItem.dataset.entityType = entityData.type;
         
         // Get mode color
-        const modeColors = {
-            'hold_position': '#666666',
-            'random_search': '#00FF00', 
-            'follow_target': '#FF8C00',
-            'follow_teammate': '#9400D3',
-            'waypoint_mode': '#0080FF',
-            'kamikaze': '#FF0000'
-        };
-        
-        const modeColor = modeColors[entityData.mode] || '#666666';
+        // Use neutral text color - no game-like colored mode text
+        const modeColor = '#B8B8B8';
         
         entityItem.innerHTML = `
             <div class="entity-header">
@@ -1519,7 +1511,7 @@ class BGCSApp {
                 </div>
                 <div class="entity-info">
                     <div class="entity-name">${entityData.entity_id}</div>
-                    <div class="entity-status" style="color: ${modeColor}">${entityData.mode}</div>
+                    <div class="entity-status" style="color: ${modeColor}">${this.formatModeName(entityData.mode)}</div>
                 </div>
             </div>
         `;
@@ -1605,17 +1597,9 @@ class BGCSApp {
             const statusElement = entityItem.querySelector('.entity-status');
             
             if (statusElement) {
-                const modeColors = {
-                    'hold_position': '#666666',
-                    'random_search': '#00FF00', 
-                    'follow_target': '#FF8C00',
-                    'follow_teammate': '#9400D3',
-                    'waypoint_mode': '#0080FF',
-                    'kamikaze': '#FF0000'
-                };
-                const modeColor = modeColors[entityData.mode] || '#666666';
-                statusElement.textContent = entityData.mode;
-                statusElement.style.color = modeColor;
+                // Use neutral text color - no game-like colored mode text
+                statusElement.textContent = this.formatModeName(entityData.mode);
+                statusElement.style.color = '#B8B8B8';
             }
         }
     }
@@ -1790,6 +1774,24 @@ class BGCSApp {
             console.error('Error applying mode to selected entities:', error);
             this.log(`Error applying ${mode} mode: ${error.message}`, 'error');
         }
+    }
+    
+    /**
+     * Format mode name for display (convert snake_case to readable format)
+     */
+    formatModeName(mode) {
+        if (!mode) return 'unknown';
+        
+        const modeMap = {
+            'random_search': 'Search',
+            'follow_target': 'Follow Target', 
+            'follow_teammate': 'Follow Team',
+            'waypoint_mode': 'Waypoint',
+            'kamikaze': 'Strike',
+            'hold_position': 'Hold'
+        };
+        
+        return modeMap[mode] || mode.replace(/_/g, ' ');
     }
     
     /**

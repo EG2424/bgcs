@@ -8,53 +8,49 @@
     --bg-secondary: #1a1a1a;
     --bg-tertiary: #2a2a2a;
     
-    /* Enhanced Glass System */
-    --glass-panel-dark: rgba(15, 15, 15, 0.35);       /* Moderate visibility */
-    --glass-panel-light: rgba(35, 35, 35, 0.35);      /* Moderate visibility */
-    --glass-panel-overlay: rgba(20, 20, 20, 0.30);    /* Moderate visibility */
-    --glass-panel-secondary: rgba(25, 25, 25, 0.30);  /* Moderate visibility */
-    --glass-panel-subtle: rgba(30, 30, 30, 0.25);     /* Moderate visibility */
+    /* Military Panel System - High Opacity for Clear Visibility */
+    --glass-panel-dark: rgba(20, 20, 20, 0.85);       /* High opacity dark */
+    --glass-panel-light: rgba(35, 35, 35, 0.85);      /* High opacity light */
+    --glass-panel-overlay: rgba(25, 25, 25, 0.80);    /* High opacity overlay */
+    --glass-panel-secondary: rgba(30, 30, 30, 0.80);  /* High opacity secondary */
+    --glass-panel-subtle: rgba(35, 35, 35, 0.75);     /* High opacity subtle */
     
     /* Enhanced Glass Border System */
     --glass-border-primary: rgba(255, 255, 255, 0.15);   /* Visible borders */
     --glass-border-secondary: rgba(255, 255, 255, 0.10); /* Subtle borders */
     --glass-border-subtle: rgba(255, 255, 255, 0.05);    /* Light borders */
     
-    /* Enhanced Blur System */
-    --blur-heavy: 12px;        /* Stronger backdrop blur */
-    --blur-medium: 8px;        /* Medium backdrop blur */
-    --blur-light: 6px;         /* Light backdrop blur */
-    --blur-subtle: 4px;        /* Subtle backdrop blur */
+    /* Removed blur system - not needed for military clarity */
     
-    /* System Blue Accent - Enhanced for glass */
-    --accent-primary: #007AFF;
-    --accent-hover: #0056CC;
-    --accent-active: #003D99;
-    --accent-glass: rgba(0, 122, 255, 0.2);
+    /* Earth Tone Color Scheme - Purpose Built */
+    --accent-primary: #8B7355;    /* Muted brown for selection */
+    --accent-hover: #6B5640;      /* Darker brown for hover */
+    --accent-active: #4B3925;     /* Deep brown for active */
+    --accent-glass: rgba(139, 115, 85, 0.15);   /* Subtle brown fill */
     
-    /* Status Colors with Glass Variants */
-    --success: #34C759;
-    --success-glass: rgba(52, 199, 89, 0.2);
-    --warning: #FF9F0A;
-    --warning-glass: rgba(255, 159, 10, 0.2);
-    --danger: #FF3B30;
-    --danger-glass: rgba(255, 59, 48, 0.2);
-    --info: #5AC8FA;
-    --info-glass: rgba(90, 200, 250, 0.2);
+    /* Status Colors - Earth Tones */
+    --success: #6B5B40;           /* Dark earth brown for success */
+    --success-glass: rgba(107, 91, 64, 0.15);
+    --warning: #8B6914;           /* Earth amber for caution */
+    --warning-glass: rgba(139, 105, 20, 0.15);
+    --danger: #6B4423;            /* Earth red-brown for critical */
+    --danger-glass: rgba(107, 68, 35, 0.15);
+    --info: #8B7355;              /* Same as accent for consistency */
+    --info-glass: rgba(139, 115, 85, 0.15);
     
-    /* Enhanced Text Colors for Ultra-Transparent Glass */
-    --text-primary: #FFFFFF;
-    --text-secondary: #FFFFFF;       /* Full white for better contrast on transparent backgrounds */
-    --text-tertiary: #EBEBF5E6;      /* 90% opacity */
-    --text-quaternary: #EBEBF5CC;    /* 80% opacity - increased from 50% */
-    --text-placeholder: #EBEBF599;   /* 60% opacity - increased from 30% */
-    --text-on-glass: #FFFFFF;        /* High contrast for glass backgrounds */
+    /* Military Text Colors - Neutral and Readable */
+    --text-primary: #E8E8E8;         /* Light grey for primary text */
+    --text-secondary: #D0D0D0;       /* Slightly dimmer grey */
+    --text-tertiary: #B8B8B8;        /* Medium grey for labels */
+    --text-quaternary: #A0A0A0;      /* Dimmer grey for secondary info */
+    --text-placeholder: #888888;     /* Darker grey for placeholders */
+    --text-on-glass: #E8E8E8;        /* Consistent neutral text */
     
-    /* Enhanced Shadow System */
-    --shadow-glass-light: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --shadow-glass-medium: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --shadow-glass-heavy: 0 16px 48px rgba(0, 0, 0, 0.6);
-    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    /* Military Shadow System - Minimal and Functional */
+    --shadow-glass-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-glass-medium: 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-glass-heavy: 0 3px 9px rgba(0, 0, 0, 0.5);
+    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     
     /* Spacing & Layout */
     --padding-xs: 4px;
@@ -107,7 +103,7 @@ input, textarea, [contenteditable="true"], .selectable-text {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'SF Pro Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     background: var(--bg-primary);
@@ -170,7 +166,7 @@ body {
     padding: var(--padding-sm);
     background: var(--glass-subtle);
     border-radius: var(--radius-lg);
-    backdrop-filter: blur(var(--blur-subtle));
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid var(--glass-border-subtle);
     transition: all var(--transition-fast);
 }
@@ -223,8 +219,7 @@ body {
     width: var(--sidebar-width);
     max-height: calc(100vh - 120px);
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-medium)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-lg);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border-subtle) inset;
@@ -268,8 +263,7 @@ body {
     transform: translateY(-50%);
     width: 200px;
     background: var(--glass-panel-dark);
-    backdrop-filter: blur(var(--blur-medium));
-    -webkit-backdrop-filter: blur(var(--blur-medium));
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-lg);
     padding: var(--padding-md);
@@ -341,10 +335,13 @@ body {
 }
 
 .mode-btn-compact.active {
-    background: var(--accent-glass);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    color: var(--text-primary);
+    position: relative;
 }
+
+/* Removed left border line for cleaner appearance */
 
 .mode-btn-compact.mixed {
     background: linear-gradient(45deg, var(--accent-glass) 50%, var(--glass-light) 50%);
@@ -433,7 +430,7 @@ body {
 .floating-control-panel::-webkit-scrollbar-thumb:hover,
 .console-content::-webkit-scrollbar-thumb:hover {
     background: var(--glass-border-primary);
-    box-shadow: 0 0 6px var(--accent-glass);
+    box-shadow: var(--shadow-glass-light);
 }
 
 /* Sidebar Structure - No Redundant Panels */
@@ -449,7 +446,7 @@ body {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-on-glass);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     letter-spacing: 0.3px;
 }
 
@@ -540,7 +537,7 @@ body {
     margin-bottom: 4px;
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-secondary);
-    backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
     
     /* Multi-select functionality (text selection disabled globally) */
 }
@@ -548,8 +545,7 @@ body {
 .group-item:hover {
     background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
-    backdrop-filter: blur(var(--blur-light));
-    -webkit-backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
 }
 
 .group-item.selected {
@@ -605,8 +601,7 @@ body {
 .targets-panel {
     margin-top: var(--padding-md);
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-lg);
     box-shadow: none;
@@ -625,7 +620,7 @@ body {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-on-glass);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     letter-spacing: 0.3px;
 }
 
@@ -686,8 +681,7 @@ body {
     display: flex;
     gap: var(--padding-xs);
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border-radius: var(--radius-lg);
     padding: var(--padding-sm);
     border: 1px solid rgba(255, 255, 255, 0.02);
@@ -728,7 +722,7 @@ body {
     position: relative;
     min-width: 64px;
     justify-content: center;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 .view-btn::before {
@@ -760,7 +754,7 @@ body {
     background: var(--accent-primary);
     color: white;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 16px var(--accent-glass), var(--shadow-glass-light);
+    box-shadow: var(--shadow-glass-medium);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
@@ -789,8 +783,7 @@ body {
     width: 36px;
     height: 36px;
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 50%;
     color: var(--text-on-glass);
@@ -819,8 +812,7 @@ body {
     right: 0;
     min-width: 220px;
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-lg);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -1054,7 +1046,7 @@ body {
     transition: all var(--transition-fast);
     text-decoration: none;
     position: relative;
-    backdrop-filter: blur(var(--blur-subtle));
+    /* Removed backdrop-filter for military clarity */
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
     min-height: 32px;
 }
@@ -1092,7 +1084,7 @@ body {
     background: var(--accent-primary);
     border-color: var(--accent-primary);
     color: white;
-    box-shadow: 0 0 12px var(--accent-glass);
+    box-shadow: var(--shadow-glass-light);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
     font-weight: 600;
 }
@@ -1100,7 +1092,7 @@ body {
 .btn-primary:hover {
     background: var(--accent-hover);
     border-color: var(--accent-hover);
-    box-shadow: 0 0 20px var(--accent-glass), var(--shadow-glass-light);
+    box-shadow: var(--shadow-glass-medium);
     transform: translateY(-2px);
 }
 
@@ -1180,7 +1172,7 @@ body {
     width: 32px;
     height: 32px;
     background: var(--glass-panel-subtle);
-    backdrop-filter: blur(var(--blur-subtle));
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid var(--glass-border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-on-glass);
@@ -1294,7 +1286,7 @@ body {
     margin-bottom: 4px;
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-secondary);
-    backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
     
     /* Multi-select functionality (text selection disabled globally) */
 }
@@ -1302,8 +1294,7 @@ body {
 .entity-item:hover {
     background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
-    backdrop-filter: blur(var(--blur-light));
-    -webkit-backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
 }
 
 .entity-item.selected {
@@ -1354,8 +1345,8 @@ body {
     font-size: var(--font-size-xs);
     font-weight: 400;
     opacity: 0.8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    text-transform: none;
+    letter-spacing: 0px;
 }
 
 .entity-actions {
@@ -1511,8 +1502,7 @@ body {
     right: var(--padding-lg);
     height: 52px; /* Start collapsed - just header height */
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-lg);
     z-index: 150;
@@ -1535,7 +1525,7 @@ body {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     height: 52px;
     background: transparent;
-    backdrop-filter: blur(var(--blur-subtle));
+    /* Removed backdrop-filter for military clarity */
     position: relative;
 }
 
@@ -1557,7 +1547,7 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-on-glass);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     letter-spacing: 0.3px;
 }
 
@@ -1575,7 +1565,7 @@ body {
     font-size: 11px;
     line-height: 1.5;
     background: transparent;
-    backdrop-filter: blur(var(--blur-subtle));
+    /* Removed backdrop-filter for military clarity */
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     display: none; /* Hidden by default */
 }
@@ -1667,7 +1657,7 @@ body {
 
 .modal {
     background: var(--bg-glass-light);
-    backdrop-filter: blur(var(--blur-amount));
+    /* Removed backdrop-filter for military clarity */
     border-radius: var(--border-radius);
     border: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-heavy);
@@ -1904,7 +1894,7 @@ input:focus,
     padding: 8px;
     color: var(--text-secondary);
     cursor: pointer;
-    backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -1924,7 +1914,7 @@ input:focus,
     background: var(--glass-panel-dark);
     border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-md);
-    backdrop-filter: blur(var(--blur-medium));
+    /* Removed backdrop-filter for military clarity */
     padding: var(--padding-sm);
     visibility: hidden;
     z-index: 1000;
@@ -2060,8 +2050,7 @@ input:focus,
     bottom: 0;
     width: 48px;
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-subtle)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border-left: 1px solid rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-lg);
     display: flex;
@@ -2094,8 +2083,7 @@ input:focus,
     background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-secondary);
     color: var(--text-secondary);
-    backdrop-filter: blur(var(--blur-light));
-    -webkit-backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
 }
 
 .spine-slot.active {
@@ -2138,8 +2126,7 @@ input:focus,
     bottom: 0;
     width: 280px;
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-medium)) saturate(100%);
-    -webkit-backdrop-filter: blur(var(--blur-medium)) saturate(100%);
+    /* Removed backdrop-filter for military clarity */
     border: 1px solid var(--glass-border-primary);
     border-radius: var(--radius-lg);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border-subtle) inset;
@@ -2179,7 +2166,7 @@ input:focus,
     font-size: 15px;
     font-weight: 600;
     color: var(--text-on-glass);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     margin: 0;
     letter-spacing: 0.3px;
 }
@@ -2238,7 +2225,7 @@ input:focus,
 .console-content::-webkit-scrollbar-thumb:hover,
 .dock-panel::-webkit-scrollbar-thumb:hover {
     background: var(--glass-border-primary);
-    box-shadow: 0 0 6px var(--accent-glass);
+    box-shadow: var(--shadow-glass-light);
 }
 
 /* Left-side scrollbars for right dock panels */
@@ -2348,8 +2335,7 @@ input:focus,
 .action-btn:hover:not(:disabled) {
     background: rgba(35, 35, 35, 0.50); /* Moderate opacity on hover */
     border-color: var(--glass-border-primary);
-    backdrop-filter: blur(var(--blur-light));
-    -webkit-backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
 }
 
 .action-btn:disabled {
@@ -2400,7 +2386,7 @@ input:focus,
     padding: var(--padding-md);
     border-bottom: 1px solid var(--glass-border-secondary);
     background: var(--glass-panel-overlay);
-    backdrop-filter: blur(var(--blur-light));
+    /* Removed backdrop-filter for military clarity */
     position: sticky;
     top: 0;
     z-index: 10;
@@ -2492,7 +2478,7 @@ input:focus,
 
 .log-level.fcu {
     background: rgba(52, 199, 89, 0.2);
-    color: #34C759;
+    color: var(--success);
     border: 1px solid rgba(52, 199, 89, 0.3);
 }
 
@@ -2613,7 +2599,7 @@ input:focus,
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-tertiary);
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
@@ -2633,24 +2619,24 @@ input:focus,
     align-items: center;
 }
 
-/* Takeoff Execute State */
+/* Takeoff Execute State - Military Amber for Action */
 .takeoff-slider .slider-thumb.execute {
-    background: rgba(0, 255, 100, 0.2);
-    border-color: #00ff64;
-    color: #00ff64;
-    box-shadow: 0 0 8px rgba(0, 255, 100, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+    background: var(--warning-glass);
+    border-color: var(--warning);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-glass-light);
 }
 
 .takeoff-slider .slider-thumb.execute svg {
     opacity: 1;
 }
 
-/* Land Execute State */
+/* Land Execute State - Military Amber for Action */
 .land-slider .slider-thumb.execute {
-    background: rgba(255, 140, 0, 0.2);
-    border-color: #ff8c00;
-    color: #ff8c00;
-    box-shadow: 0 0 8px rgba(255, 140, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+    background: var(--warning-glass);
+    border-color: var(--warning);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-glass-light);
 }
 
 .land-slider .slider-thumb.execute svg {
