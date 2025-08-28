@@ -478,20 +478,16 @@ class DockSystem {
     executeAction(actionType) {
         if (this.selectedEntities.size === 0) return;
         
-        // Simple confirmation for now
+        // Execute action directly without confirmation (slider-based interface)
         const entityCount = this.selectedEntities.size;
-        const actionName = actionType.charAt(0).toUpperCase() + actionType.slice(1);
         
-        if (confirm(`${actionName} ${entityCount} entities?`)) {
-            // Dispatch action to entity system
-            document.dispatchEvent(new CustomEvent('executeEntityAction', {
-                detail: {
-                    action: actionType,
-                    entities: Array.from(this.selectedEntities)
-                }
-            }));
-            
-        }
+        // Dispatch action to entity system
+        document.dispatchEvent(new CustomEvent('executeEntityAction', {
+            detail: {
+                action: actionType,
+                entities: Array.from(this.selectedEntities)
+            }
+        }));
     }
     
     toggleLogPause() {
