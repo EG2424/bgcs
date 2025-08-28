@@ -251,7 +251,7 @@ class DockSystem {
             
             // Create camera feed for each selected entity
             selectedEntities.forEach((entity, index) => {
-                const feedItem = this.createCameraFeedItem(entity, index === 0);
+                const feedItem = this.createCameraFeedItem(entity, false);
                 feedContainer.appendChild(feedItem);
             });
         } else {
@@ -280,7 +280,7 @@ class DockSystem {
         
         feedItem.innerHTML = `
             <div class="camera-feed-header">
-                <span class="camera-feed-title">${entityName}${isPrimary ? ' (Primary)' : ''}</span>
+                <span class="camera-feed-title">${entityName}</span>
                 <div class="camera-feed-status">
                     <span>--fps</span>
                     <span>--ms</span>

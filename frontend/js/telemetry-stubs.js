@@ -235,7 +235,6 @@ class TelemetryStubs {
         const wallTimeStr = this.formatWallTime(entry.timestamp);
         
         logElement.innerHTML = `
-            <span class="log-timestamp">${missionTimeStr}</span>
             <span class="log-level ${entry.level.toLowerCase()}">${entry.level}</span>
             <span class="log-entity">${entry.entity.replace('drone_', '').replace(/^\d+_/, '').substring(0, 8)}</span>
             <span class="log-message">${entry.message}${entry.isStub ? ' <em style="opacity: 0.5; font-size: 7px;">[STUB]</em>' : ''}</span>
