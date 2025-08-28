@@ -169,15 +169,15 @@ class DockSystem {
         let targetBg, targetBorder, targetText;
         
         if (action === 'takeoff') {
-            // Green target for takeoff
-            targetBg = { r: 0, g: 255, b: 100, a: 0.4 };
-            targetBorder = { r: 0, g: 255, b: 100, a: 1.0 };
-            targetText = { r: 0, g: 255, b: 100, a: 1.0 };
+            // Earth amber for takeoff with solid background
+            targetBg = { r: 139, g: 105, b: 20, a: 0.7 };
+            targetBorder = { r: 139, g: 105, b: 20, a: 1.0 };
+            targetText = { r: 232, g: 232, b: 232, a: 1.0 }; // neutral text
         } else if (action === 'land') {
-            // Orange target for land
-            targetBg = { r: 255, g: 140, b: 0, a: 0.4 };
-            targetBorder = { r: 255, g: 140, b: 0, a: 1.0 };
-            targetText = { r: 255, g: 140, b: 0, a: 1.0 };
+            // Earth amber for land with solid background
+            targetBg = { r: 139, g: 105, b: 20, a: 0.7 };
+            targetBorder = { r: 139, g: 105, b: 20, a: 1.0 };
+            targetText = { r: 232, g: 232, b: 232, a: 1.0 }; // neutral text
         }
         
         // Interpolate colors based on progress
