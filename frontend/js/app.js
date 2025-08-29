@@ -2875,6 +2875,11 @@ class BGCSApp {
             this.groups.delete(groupId);
             this.removeGroupFromList(groupId);
             
+            // Clear entity selection to prevent UI state issues
+            if (this.uiControls) {
+                this.uiControls.clearSelection();
+            }
+            
             this.log(`Deleted group ${groupData.name}`, 'success');
             
         } catch (error) {
