@@ -2725,3 +2725,197 @@ input:focus,
     }
     
 }
+
+/* ============================================================================
+   MILITARY SELECTION VISUALS SYSTEM
+   ============================================================================ */
+
+/* HUD Overlay Container */
+.bgcs-hud-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-primary);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* Tactical HUD Tags */
+.bgcs-hud-tag {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #666666;
+    padding: 3px 6px;
+    border-radius: 2px;
+    white-space: nowrap;
+    transform: translate(0%, -50%);
+    font-size: 10px;
+    line-height: 1.2;
+    min-width: 40px;
+    text-align: left;
+    color: #cccccc;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-weight: normal;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+
+/* Entity Type Specific HUD Tags */
+.bgcs-hud-tag.ally {
+    border-color: rgba(0, 255, 0, 0.6);
+    background: rgba(0, 50, 0, 0.8);
+}
+
+.bgcs-hud-tag.hostile {
+    border-color: rgba(255, 0, 0, 0.6);
+    background: rgba(50, 0, 0, 0.8);
+}
+
+.bgcs-hud-tag.neutral {
+    border-color: rgba(255, 170, 0, 0.6);
+    background: rgba(50, 40, 0, 0.8);
+}
+
+/* Off-Screen Pointers */
+.bgcs-offscreen-pointer {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: #cccccc;
+    border: 1px solid #666666;
+    padding: 4px 8px;
+    font-size: 10px;
+    text-align: center;
+    border-radius: 2px;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-weight: normal;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    min-width: 50px;
+    line-height: 1.1;
+}
+
+/* Distance and Bearing Display */
+.bgcs-offscreen-pointer .distance {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 1px;
+}
+
+.bgcs-offscreen-pointer .bearing {
+    display: block;
+    font-size: 8px;
+    opacity: 0.8;
+}
+
+/* Entity Type Specific Pointers */
+.bgcs-offscreen-pointer.ally {
+    border-color: rgba(0, 255, 0, 0.6);
+}
+
+.bgcs-offscreen-pointer.hostile {
+    border-color: rgba(255, 0, 0, 0.6);
+}
+
+.bgcs-offscreen-pointer.neutral {
+    border-color: rgba(255, 170, 0, 0.6);
+}
+
+/* Selection Rectangle (Box Selection) Enhancement */
+.bgcs-selection-rectangle {
+    border: 1px solid var(--text-secondary) !important;
+    background-color: rgba(139, 115, 85, 0.1) !important; /* Subtle earth tone */
+    box-shadow: inset 0 0 3px rgba(139, 115, 85, 0.3);
+}
+
+/* Visual Feedback States */
+.entity-selected .bgcs-hud-tag {
+    border-width: 2px;
+    font-weight: bold;
+    animation: hud-pulse 2s ease-in-out infinite alternate;
+}
+
+.entity-hovered .bgcs-hud-tag {
+    border-color: var(--text-primary);
+    background: var(--glass-panel-light);
+}
+
+/* HUD Pulse Animation for Selected Entities */
+@keyframes hud-pulse {
+    0% { opacity: 0.9; }
+    100% { opacity: 1.0; }
+}
+
+/* Distance-based Visibility Classes */
+.hud-near {
+    font-size: 11px;
+}
+
+.hud-mid {
+    font-size: 10px;
+}
+
+.hud-far {
+    font-size: 9px;
+    opacity: 0.8;
+}
+
+/* Tactical Console Integration */
+.tactical-overlay-enabled {
+    cursor: crosshair;
+}
+
+.tactical-overlay-enabled .bgcs-hud-tag {
+    border-style: dashed;
+}
+
+/* High DPI/Retina Display Support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+    .bgcs-hud-tag,
+    .bgcs-offscreen-pointer {
+        border-width: 0.5px;
+    }
+    
+    .entity-selected .bgcs-hud-tag {
+        border-width: 1px;
+    }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .entity-selected .bgcs-hud-tag {
+        animation: none;
+    }
+    
+    @keyframes hud-pulse {
+        0%, 100% { opacity: 1.0; }
+    }
+}
+
+/* Performance Optimization - Will Change for GPU Acceleration */
+.bgcs-hud-overlay,
+.bgcs-hud-tag,
+.bgcs-offscreen-pointer {
+    will-change: transform, opacity;
+}
+
+/* Debug Mode Styling */
+.debug-selection-visuals .bgcs-hud-tag::after {
+    content: ' [DBG]';
+    font-size: 8px;
+    opacity: 0.6;
+}
+
+.debug-selection-visuals .bgcs-offscreen-pointer::before {
+    content: '⚙ ';
+    font-size: 8px;
+    opacity: 0.5;
+}

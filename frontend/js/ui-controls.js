@@ -810,23 +810,35 @@ class BGCSUIControls {
     }
     
     /**
-     * Add selection glow effect to mesh
+     * Add military-spec selection visuals to entity
      */
     addSelectionGlow(mesh) {
-        // Create glow outline or change material
-        if (mesh.material.originalColor === undefined) {
-            mesh.material.originalColor = mesh.material.color.clone();
+        const selectionVisuals = this.renderer3D.getSelectionVisuals();
+        if (selectionVisuals && mesh.userData.entityId) {
+            // Determine entity type for proper coloring
+            const entityType = this.getEntityType(mesh.userData.entityId);
+            selectionVisuals.addSelection(mesh.userData.entityId, entityType);
+        } else {
+            // Fallback to old system if new system not available
+            if (mesh.material.originalColor === undefined) {
+                mesh.material.originalColor = mesh.material.color.clone();
+            }
+            mesh.material.color.setHex(0xFFFF00);
         }
-        mesh.material.color.setHex(0xFFFF00); // Yellow selection
     }
     
     /**
-     * Remove selection glow effect from mesh
+     * Remove selection visuals from entity
      */
     removeSelectionGlow(mesh) {
-        // Restore original material
-        if (mesh.material.originalColor) {
-            mesh.material.color.copy(mesh.material.originalColor);
+        const selectionVisuals = this.renderer3D.getSelectionVisuals();
+        if (selectionVisuals && mesh.userData.entityId) {
+            selectionVisuals.removeSelection(mesh.userData.entityId);
+        } else {
+            // Fallback to old system
+            if (mesh.material.originalColor) {
+                mesh.material.color.copy(mesh.material.originalColor);
+            }
         }
     }
     
@@ -867,22 +879,33 @@ class BGCSUIControls {
     }
     
     /**
-     * Add hover effect to mesh
+     * Add military-spec hover effect to mesh
      */
     addHoverEffect(mesh) {
-        // Subtle highlight for hover
-        if (mesh.material.originalColor === undefined) {
-            mesh.material.originalColor = mesh.material.color.clone();
+        const selectionVisuals = this.renderer3D.getSelectionVisuals();
+        if (selectionVisuals && mesh.userData.entityId) {
+            selectionVisuals.addHover(mesh.userData.entityId);
+        } else {
+            // Fallback to old system
+            if (mesh.material.originalColor === undefined) {
+                mesh.material.originalColor = mesh.material.color.clone();
+            }
+            mesh.material.color.lerp(new THREE.Color(0xFFFFFF), 0.3);
         }
-        mesh.material.color.lerp(new THREE.Color(0xFFFFFF), 0.3);
     }
     
     /**
      * Remove hover effect from mesh
      */
     removeHoverEffect(mesh) {
-        if (mesh.material.originalColor) {
-            mesh.material.color.copy(mesh.material.originalColor);
+        const selectionVisuals = this.renderer3D.getSelectionVisuals();
+        if (selectionVisuals && mesh.userData.entityId) {
+            selectionVisuals.removeHover(mesh.userData.entityId);
+        } else {
+            // Fallback to old system
+            if (mesh.material.originalColor) {
+                mesh.material.color.copy(mesh.material.originalColor);
+            }
         }
     }
     
@@ -1021,6 +1044,36 @@ class BGCSUIControls {
         this.renderer3D.entities.forEach((mesh, entityId) => {
             this.selectEntity(entityId);
         });
+    }
+    
+    /**
+     * Get entity faction type for proper visual coloring
+     */
+    getEntityType(entityId) {
+        // Default to ally for all entities in simulation
+        // In a real tactical system, this would check entity.faction or entity.side
+        const entity = window.bgcsEntityStateManager?.getEntity(entityId);
+        if (entity) {
+            // Check if entity has faction/side property
+            if (entity.faction) {
+                switch (entity.faction.toLowerCase()) {
+                    case 'hostile':
+                    case 'enemy':
+                    case 'red':
+                        return 'hostile';
+                    case 'neutral':
+                    case 'yellow':
+                        return 'neutral';
+                    default:
+                        return 'ally';
+                }
+            }
+            // Default drone/friendly entities to ally
+            if (entity.type === 'drone') return 'ally';
+            // Default targets to hostile for training scenarios
+            if (entity.type === 'target') return 'hostile';
+        }
+        return 'ally'; // Default fallback
     }
     
     /**

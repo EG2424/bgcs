@@ -17,6 +17,9 @@ class BGCS3DRenderer {
         this.animationFrameId = null;
         this.isRendering = false;
         
+        // Selection visual system
+        this.selectionVisuals = null;
+        
         // Performance tracking
         this.fps = 0;
         this.lastFrameTime = 0;
@@ -34,6 +37,7 @@ class BGCS3DRenderer {
             this.createRenderer();
             this.createLighting();
             await this.loadTerrain(); // Only load 3D terrain
+            this.setupSelectionVisuals();
             this.setupEventListeners();
             
             return true;
@@ -143,7 +147,23 @@ class BGCS3DRenderer {
         // this.scene.add(lightHelper);
     }
     
-    
+    /**
+     * Setup selection visual system
+     */
+    setupSelectionVisuals() {
+        // Wait for camera manager to be available
+        if (window.bgcsCameras && window.SelectionVisuals) {
+            const camera = window.bgcsCameras.getCurrentCamera();
+            if (camera) {
+                this.selectionVisuals = new SelectionVisuals(this, this.scene, camera);
+            }
+        }
+        
+        // If not ready, retry in 100ms
+        if (!this.selectionVisuals) {
+            setTimeout(() => this.setupSelectionVisuals(), 100);
+        }
+    }
     
     /**
      * Setup event listeners for canvas resize
@@ -370,6 +390,11 @@ class BGCS3DRenderer {
         if (mesh) {
             this.scene.remove(mesh);
             
+            // Clean up selection visuals for this entity
+            if (this.selectionVisuals) {
+                this.selectionVisuals.cleanupEntity(entityId);
+            }
+            
             // Dispose of geometry and material to prevent memory leaks
             if (mesh.geometry) mesh.geometry.dispose();
             if (mesh.material) {
@@ -530,6 +555,13 @@ class BGCS3DRenderer {
     }
     
     /**
+     * Get selection visuals system
+     */
+    getSelectionVisuals() {
+        return this.selectionVisuals;
+    }
+    
+    /**
      * Clear all entities from scene
      */
     clear() {
@@ -543,6 +575,12 @@ class BGCS3DRenderer {
     dispose() {
         this.stopRendering();
         this.clear();
+        
+        // Dispose selection visuals
+        if (this.selectionVisuals) {
+            this.selectionVisuals.dispose();
+            this.selectionVisuals = null;
+        }
         
         // Dispose terrain
         if (this.terrain) {
