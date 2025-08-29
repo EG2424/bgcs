@@ -2577,8 +2577,11 @@ class BGCSApp {
             // Remove entities from their existing groups before adding to new group
             this.removeEntitiesFromExistingGroups(entityIds);
             
+            // Generate short random ID for group name
+            const generateShortId = () => Math.random().toString(36).substr(2, 4).toUpperCase();
+            
             this.groupCounter++;
-            const finalGroupName = groupName || `Group ${this.groupCounter}`;
+            const finalGroupName = groupName || `Group ${generateShortId()}`;
             
             // Call backend API to create group
             const response = await fetch('/api/groups', {
@@ -2948,7 +2951,8 @@ class BGCSApp {
             const existingGroup = this.findGroupWithEntities(entityIds);
             
             if (!existingGroup) {
-                const groupId = await this.createGroup(entityIds, `Waypoint Group ${this.groupCounter}`);
+                const generateShortId = () => Math.random().toString(36).substr(2, 4).toUpperCase();
+                const groupId = await this.createGroup(entityIds, `Group ${generateShortId()}`);
                 this.log(`Auto-created waypoint group with ${entityIds.length} entities`, 'info');
                 return groupId;
             } else {
