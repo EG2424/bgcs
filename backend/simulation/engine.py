@@ -327,6 +327,12 @@ class SimulationEngine:
         # Clean up any empty groups (removes groups with no valid entity members)
         self.state_manager.cleanup_empty_groups()
         
+        # Helper function to generate short random IDs
+        def generate_short_id():
+            import string
+            chars = string.ascii_uppercase + string.digits
+            return ''.join(random.choice(chars) for _ in range(3))
+        
         # Spawn drones in a circle around origin (closer to center)
         for i in range(num_drones):
             angle = (2 * 3.14159 * i) / num_drones
@@ -337,7 +343,7 @@ class SimulationEngine:
             
             self.spawn_entity(
                 "drone",
-                f"drone-{i+1}",
+                f"drone-{generate_short_id()}",
                 Vector3(x, y, z),
                 current_mode="random_search"
             )
@@ -353,7 +359,7 @@ class SimulationEngine:
             
             self.spawn_entity(
                 "target",
-                f"target-{i+1}",
+                f"target-{generate_short_id()}",
                 Vector3(x, y, z),
                 role=role,
                 current_mode="hold_position"

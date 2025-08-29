@@ -736,10 +736,9 @@ class BGCSApp {
         this.clearButtonFocus();
         
         try {
-            // Generate unique ID
-            const timestamp = Date.now();
-            const randomId = Math.floor(Math.random() * 1000);
-            const entityId = `${type}_${timestamp}_${randomId}`;
+            // Generate short unique ID
+            const generateShortId = () => Math.random().toString(36).substr(2, 3).toUpperCase();
+            const entityId = `${type}-${generateShortId()}`;
             
             // Generate random position
             const position = this.getRandomSpawnPosition();
@@ -2571,7 +2570,7 @@ class BGCSApp {
             this.removeEntitiesFromExistingGroups(entityIds);
             
             // Generate short random ID for group name
-            const generateShortId = () => Math.random().toString(36).substr(2, 4).toUpperCase();
+            const generateShortId = () => Math.random().toString(36).substr(2, 3).toUpperCase();
             
             this.groupCounter++;
             const finalGroupName = groupName || `Group ${generateShortId()}`;
@@ -2944,7 +2943,7 @@ class BGCSApp {
             const existingGroup = this.findGroupWithEntities(entityIds);
             
             if (!existingGroup) {
-                const generateShortId = () => Math.random().toString(36).substr(2, 4).toUpperCase();
+                const generateShortId = () => Math.random().toString(36).substr(2, 3).toUpperCase();
                 const groupId = await this.createGroup(entityIds, `Group ${generateShortId()}`);
                 this.log(`Auto-created waypoint group with ${entityIds.length} entities`, 'info');
                 return groupId;
