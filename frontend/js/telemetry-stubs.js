@@ -197,10 +197,15 @@ class TelemetryStubs {
         
         // Check if we should show logs based on selection
         if (window.dockSystem) {
-            // Only show logs if dock is expanded, logs tab is open, AND entities are selected
-            if (window.dockSystem.currentTab === 'logs' && 
-                window.dockSystem.isExpanded && 
-                window.dockSystem.selectedEntities.size > 0) {
+            const isLogsVisible = (
+                // Show if logs tab is open in dock
+                (window.dockSystem.currentTab === 'logs' && window.dockSystem.isExpanded) ||
+                // OR if logs panel is floating
+                window.dockSystem.floatingPanels.has('logs')
+            );
+            
+            // Only show logs if logs is visible AND entities are selected
+            if (isLogsVisible && window.dockSystem.selectedEntities.size > 0) {
                 
                 // Only show logs for selected entities
                 const selectedEntityNames = Array.from(window.dockSystem.selectedEntities)

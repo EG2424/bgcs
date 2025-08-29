@@ -2093,7 +2093,7 @@ input:focus,
     display: flex;
     align-items: center;
     justify-content: center;
-    position: static;
+    position: relative; /* Fixed: Changed from static to relative for proper indicator positioning */
     margin: 0;
     padding: 0;
 }
@@ -2111,6 +2111,60 @@ input:focus,
     color: var(--accent-primary);
 }
 
+/* Taskbar States - Military Style Visual Indicators */
+.spine-slot.open {
+    /* Tab is open but not currently visible */
+    background: rgba(139, 115, 85, 0.08);
+    border-color: rgba(139, 115, 85, 0.3);
+    color: var(--text-secondary);
+}
+
+.spine-slot.open::after {
+    /* Small indicator dot for open tabs */
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 4px;
+    height: 4px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    opacity: 0.7;
+}
+
+.spine-slot.minimized {
+    /* Tab is minimized (open but collapsed) */
+    background: rgba(139, 115, 85, 0.12);
+    border-color: rgba(139, 115, 85, 0.4);
+    color: var(--text-tertiary);
+}
+
+.spine-slot.minimized::after {
+    /* Different indicator for minimized state */
+    background: rgba(139, 115, 85, 0.6);
+    width: 6px;
+    height: 2px;
+    border-radius: 1px;
+    bottom: 3px;
+    right: 3px;
+}
+
+.spine-slot.open:hover {
+    background: rgba(139, 115, 85, 0.15);
+    border-color: rgba(139, 115, 85, 0.5);
+    color: var(--text-primary);
+}
+
+.spine-slot.minimized:hover {
+    background: rgba(139, 115, 85, 0.18);
+    border-color: rgba(139, 115, 85, 0.6);
+    color: var(--text-secondary);
+}
+
+/* Active state takes priority over open/minimized */
+.spine-slot.active::after {
+    display: none; /* Don't show indicator dot for active tab */
+}
 
 .spine-slot svg {
     transition: all var(--transition-fast);
@@ -2119,6 +2173,346 @@ input:focus,
 
 
 
+
+/* Floating Windows System */
+.floating-window-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none; /* Allow clicks through container */
+    z-index: 2000;
+}
+
+.floating-window {
+    position: absolute;
+    min-width: 250px;
+    min-height: 200px;
+    background: var(--glass-panel-overlay);
+    border: 1px solid var(--glass-border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 0 1px var(--glass-border-subtle) inset;
+    pointer-events: auto; /* Re-enable interactions for window */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow var(--transition-fast);
+}
+
+.floating-window.active {
+    border-color: var(--accent-primary);
+    box-shadow: 
+        0 12px 48px rgba(0, 0, 0, 0.4),
+        0 0 0 1px var(--accent-primary) inset,
+        0 0 24px rgba(139, 115, 85, 0.15);
+}
+
+.floating-window.dragging {
+    box-shadow: 
+        0 16px 64px rgba(0, 0, 0, 0.5),
+        0 0 0 1px var(--accent-primary) inset,
+        0 0 32px rgba(139, 115, 85, 0.25);
+    transform: scale(1.02);
+    z-index: 9999 !important;
+}
+
+.floating-window.resizing {
+    transition: none;
+}
+
+/* Military Window Chrome */
+.window-chrome {
+    background: var(--glass-panel-dark);
+    border-bottom: 1px solid var(--glass-border-secondary);
+    flex-shrink: 0;
+}
+
+.window-header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--padding-sm);
+    cursor: move;
+    user-select: none;
+}
+
+.window-header:hover {
+    background: rgba(35, 35, 35, 0.3);
+}
+
+.window-title {
+    display: flex;
+    align-items: center;
+    gap: var(--padding-sm);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+}
+
+.window-icon {
+    flex-shrink: 0;
+    color: var(--accent-primary);
+}
+
+.window-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.window-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.window-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-xs);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.window-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+}
+
+.window-btn.close-btn:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.window-btn.dock-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+/* Window Content Area */
+.window-content {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--glass-panel-overlay);
+}
+
+/* Resize Handle */
+.window-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(-45deg, 
+        transparent 0%, 
+        transparent 30%, 
+        var(--accent-primary) 30%, 
+        var(--accent-primary) 35%, 
+        transparent 35%, 
+        transparent 45%,
+        var(--accent-primary) 45%, 
+        var(--accent-primary) 50%, 
+        transparent 50%
+    );
+    cursor: se-resize;
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+}
+
+.window-resize-handle:hover {
+    opacity: 1;
+}
+
+/* Global Drag States */
+body.dragging-window {
+    cursor: move !important;
+    user-select: none !important;
+}
+
+body.dragging-window * {
+    cursor: move !important;
+}
+
+body.resizing-window {
+    cursor: se-resize !important;
+    user-select: none !important;
+}
+
+body.resizing-window * {
+    cursor: se-resize !important;
+}
+
+/* Panel Content in Windows - Inherit existing styles */
+.floating-window .panel-header,
+.floating-window .panel-content {
+    /* Use existing panel styles when inside floating windows */
+}
+
+.floating-panel-content {
+    /* Wrapper for panel content inside floating windows */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    padding: var(--padding-md);
+    min-height: 0; /* Allow flexbox shrinking */
+}
+
+/* Ensure console content is visible in floating windows */
+.floating-window .console-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--padding-sm);
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    background: transparent;
+}
+
+/* Ensure logs content is visible in floating windows */
+.floating-window .logs-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--padding-sm);
+    font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 10px;
+    line-height: 1.3;
+    color: var(--text-primary);
+    background: transparent;
+}
+
+/* Floating window content containers */
+.floating-window .floating-panel-content {
+    min-height: 100px; /* Ensure minimum height */
+}
+
+.floating-window .console-content {
+    min-height: 50px; /* Ensure minimum height */
+    height: auto; /* Allow natural height */
+}
+
+.floating-window .logs-content {
+    min-height: 50px; /* Ensure minimum height */
+    height: auto; /* Allow natural height */
+}
+
+/* Ensure log entries are visible */
+.floating-window .log-entry {
+    display: block !important;
+    margin-bottom: 2px;
+    padding: 2px 4px;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.floating-window .log-time,
+.floating-window .log-message {
+    display: inline !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    color: var(--text-primary) !important;
+}
+
+/* Override any dock-specific hiding/layout rules */
+.floating-window .panel-content,
+.floating-window .console-content,
+.floating-window .logs-content {
+    display: flex !important;
+    flex-direction: column !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+/* Drag-to-Undock Feedback */
+.panel-header.dragging-to-undock {
+    background: var(--accent-glass);
+    border-color: var(--accent-primary);
+    cursor: grabbing !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(139, 115, 85, 0.3);
+}
+
+body.dragging-panel {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
+body.dragging-panel * {
+    cursor: grabbing !important;
+}
+
+.drag-preview {
+    position: fixed;
+    padding: 8px 12px;
+    background: var(--glass-panel-dark);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    display: none;
+    animation: dragPreviewPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes dragPreviewPulse {
+    from { opacity: 0.8; }
+    to { opacity: 1; }
+}
+
+/* Floating Panel State Indicators in Taskbar */
+.spine-slot.floating {
+    background: rgba(139, 115, 85, 0.2);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.spine-slot.floating::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(139, 115, 85, 0.5);
+    pointer-events: none; /* Don't interfere with clicks */
+    z-index: 1; /* Ensure it appears above the SVG */
+}
+
+.spine-slot.floating:hover {
+    background: rgba(139, 115, 85, 0.25);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
+/* Fix existing state indicators positioning */
+.spine-slot.open::after,
+.spine-slot.minimized::after {
+    pointer-events: none;
+    z-index: 1;
+}
 
 /* Right Dock Panel */
 .right-dock {
@@ -2216,14 +2610,24 @@ input:focus,
 .camera-viewport::-webkit-scrollbar,
 .logs-content::-webkit-scrollbar,
 .console-content::-webkit-scrollbar,
-.dock-panel::-webkit-scrollbar {
+.dock-panel::-webkit-scrollbar,
+.section-content::-webkit-scrollbar,
+.window-content::-webkit-scrollbar,
+.camera-feed-container::-webkit-scrollbar,
+.action-sliders::-webkit-scrollbar,
+.floating-panel-content::-webkit-scrollbar {
     width: 8px;
 }
 
 .camera-viewport::-webkit-scrollbar-track,
 .logs-content::-webkit-scrollbar-track,
 .console-content::-webkit-scrollbar-track,
-.dock-panel::-webkit-scrollbar-track {
+.dock-panel::-webkit-scrollbar-track,
+.section-content::-webkit-scrollbar-track,
+.window-content::-webkit-scrollbar-track,
+.camera-feed-container::-webkit-scrollbar-track,
+.action-sliders::-webkit-scrollbar-track,
+.floating-panel-content::-webkit-scrollbar-track {
     background: var(--glass-subtle);
     border-radius: 4px;
     margin: 4px;
@@ -2232,7 +2636,12 @@ input:focus,
 .camera-viewport::-webkit-scrollbar-thumb,
 .logs-content::-webkit-scrollbar-thumb,
 .console-content::-webkit-scrollbar-thumb,
-.dock-panel::-webkit-scrollbar-thumb {
+.dock-panel::-webkit-scrollbar-thumb,
+.section-content::-webkit-scrollbar-thumb,
+.window-content::-webkit-scrollbar-thumb,
+.camera-feed-container::-webkit-scrollbar-thumb,
+.action-sliders::-webkit-scrollbar-thumb,
+.floating-panel-content::-webkit-scrollbar-thumb {
     background: var(--glass-border-secondary);
     border-radius: 4px;
     border: 1px solid var(--glass-border-subtle);
@@ -2242,7 +2651,12 @@ input:focus,
 .camera-viewport::-webkit-scrollbar-thumb:hover,
 .logs-content::-webkit-scrollbar-thumb:hover,
 .console-content::-webkit-scrollbar-thumb:hover,
-.dock-panel::-webkit-scrollbar-thumb:hover {
+.dock-panel::-webkit-scrollbar-thumb:hover,
+.section-content::-webkit-scrollbar-thumb:hover,
+.window-content::-webkit-scrollbar-thumb:hover,
+.camera-feed-container::-webkit-scrollbar-thumb:hover,
+.action-sliders::-webkit-scrollbar-thumb:hover,
+.floating-panel-content::-webkit-scrollbar-thumb:hover {
     background: var(--glass-border-primary);
     box-shadow: var(--shadow-glass-light);
 }
@@ -2701,10 +3115,13 @@ input:focus,
 }
 
 .section-content {
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     transition: max-height 0.3s ease, opacity 0.2s ease;
     max-height: 500px;
     opacity: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border-secondary) transparent;
 }
 
 .section-content.collapsed {

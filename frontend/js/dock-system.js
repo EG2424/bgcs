@@ -5,6 +5,23 @@ class DockSystem {
         this.isExpanded = false;
         this.selectedEntities = new Set();
         
+        // Taskbar state management
+        this.openTabs = new Set(); // Track which tabs are "open" (have been clicked)
+        this.minimizedTabs = new Set(); // Track which tabs are minimized
+        
+        // Panel configuration - flexible system for adding new panels
+        this.panelConfigs = {
+            camera: { name: 'Camera Feeds', icon: 'camera', width: '330px' },
+            actions: { name: 'Actions', icon: 'actions', width: '310px' },
+            logs: { name: 'Telemetry Logs', icon: 'logs', width: '450px' },
+            console: { name: 'Console', icon: 'console', width: '320px' }
+        };
+        
+        // Floating window integration
+        this.floatingPanels = new Set(); // Track which panels are floating
+        this.panelsBeingDocked = new Set(); // Track panels in the process of being docked (prevent cleanup)
+        this.dragThreshold = 10; // Pixels to start drag-to-undock
+        
         this.init();
     }
     
@@ -40,6 +57,9 @@ class DockSystem {
         
         // Setup collapsible sections
         this.setupCollapsibleSections();
+        
+        // Setup drag-to-undock for panel headers
+        this.setupDragToUndock();
         
         // Window resize listener removed - using fixed widths
     }
@@ -252,9 +272,11 @@ class DockSystem {
     }
     
     setupDefaultState() {
-        // Start collapsed
+        // Start collapsed with no tabs open
         this.isExpanded = false;
         this.dock.classList.remove('expanded');
+        this.openTabs.clear();
+        this.minimizedTabs.clear();
         
         // Hide all panels
         const panels = this.dock.querySelectorAll('.dock-panel');
@@ -262,32 +284,73 @@ class DockSystem {
             panel.classList.remove('active');
         });
         
-        // Default tab
-        if (window.BGCS_CONFIG && window.BGCS_CONFIG.DEFAULT_DOCK_TAB) {
-            this.currentTab = window.BGCS_CONFIG.DEFAULT_DOCK_TAB;
-        } else {
-            this.currentTab = 'actions';
-        }
+        // No default tab - clean taskbar state
+        this.currentTab = null;
+        
+        // Initialize taskbar visual states
+        this.updateTaskbarStates();
         
         // Setup console controls
         this.setupConsoleListeners();
+        
+        console.log('🏗️ Dock system initialized with taskbar behavior');
     }
     
     switchTab(tabName) {
-        // If clicking same tab while expanded, collapse
-        if (this.isExpanded && this.currentTab === tabName) {
-            this.collapse();
+        // Check current state
+        const isCurrentlyActive = this.isExpanded && this.currentTab === tabName;
+        const isFloating = this.floatingPanels.has(tabName);
+        const isMinimized = this.minimizedTabs.has(tabName);
+        
+        if (isCurrentlyActive) {
+            // Close/minimize current active tab
+            this.minimizeTab(tabName);
             return;
         }
+        
+        if (isFloating) {
+            // If panel is floating, bring floating window to front
+            const windows = window.windowManager?.getWindowsForPanel(tabName) || [];
+            if (windows.length > 0) {
+                window.windowManager.setActiveWindow(windows[0].id);
+                console.log(`🪟 Brought floating ${tabName} to front`);
+                return;
+            }
+        }
+        
+        if (isMinimized && isFloating) {
+            // Restore minimized floating tab (future feature)
+            this.restoreTab(tabName);
+            return;
+        }
+        
+        // Open tab in dock (normal case)
+        this.openTab(tabName);
+    }
+    
+    openTab(tabName) {
+        // Clean up previous tab if it's not floating and not deliberately minimized
+        if (this.currentTab && this.currentTab !== tabName) {
+            const prevTab = this.currentTab;
+            
+            // Only clean up if the previous tab is not floating
+            if (!this.floatingPanels.has(prevTab)) {
+                // Remove previous tab from open state (close it completely)
+                this.openTabs.delete(prevTab);
+                this.minimizedTabs.delete(prevTab);
+                console.log(`🗑️ Cleaned up previous tab: ${prevTab}`);
+            }
+        }
+        
+        // Mark current tab as open
+        this.openTabs.add(tabName);
+        this.minimizedTabs.delete(tabName); // Remove from minimized
         
         // Update current tab
         this.currentTab = tabName;
         
-        // Update spine slot states
-        const spineSlots = document.querySelectorAll('.spine-slot');
-        spineSlots.forEach(slot => {
-            slot.classList.toggle('active', slot.getAttribute('data-tab') === tabName);
-        });
+        // Update taskbar visual states
+        this.updateTaskbarStates();
         
         // Update panel states
         const panels = this.dock.querySelectorAll('.dock-panel');
@@ -298,12 +361,137 @@ class DockSystem {
         // Expand dock
         this.expand();
         
-        // If switching to console tab, force update console display
+        // Panel-specific initialization
         if (tabName === 'console' && window.bgcsApp && window.bgcsApp.updateConsoleDisplay) {
             setTimeout(() => {
                 window.bgcsApp.updateConsoleDisplay();
             }, 50);
         }
+        
+        console.log(`📱 Opened tab: ${tabName}`);
+    }
+    
+    minimizeTab(tabName) {
+        // For single-dock UI, minimizing means closing completely (unless floating)
+        if (!this.floatingPanels.has(tabName)) {
+            // Close the tab completely
+            this.openTabs.delete(tabName);
+            this.minimizedTabs.delete(tabName);
+            console.log(`❌ Closed tab: ${tabName}`);
+        } else {
+            // If floating, just mark as minimized (for future multi-window support)
+            this.minimizedTabs.add(tabName);
+            console.log(`➖ Minimized floating tab: ${tabName}`);
+        }
+        
+        // Clear current tab
+        if (this.currentTab === tabName) {
+            this.currentTab = null;
+        }
+        
+        // Update taskbar visual states
+        this.updateTaskbarStates();
+        
+        // Collapse dock
+        this.collapse();
+    }
+    
+    restoreTab(tabName) {
+        // Remove from minimized
+        this.minimizedTabs.delete(tabName);
+        
+        // Set as current and expand
+        this.currentTab = tabName;
+        
+        // Update taskbar visual states
+        this.updateTaskbarStates();
+        
+        // Update panel states
+        const panels = this.dock.querySelectorAll('.dock-panel');
+        panels.forEach(panel => {
+            panel.classList.toggle('active', panel.getAttribute('data-panel') === tabName);
+        });
+        
+        // Expand dock
+        this.expand();
+        
+        console.log(`⬆️ Restored tab: ${tabName}`);
+    }
+    
+    closeTab(tabName) {
+        // Remove from all tracking sets
+        this.openTabs.delete(tabName);
+        this.minimizedTabs.delete(tabName);
+        
+        // If closing current tab, collapse dock
+        if (this.currentTab === tabName) {
+            this.collapse();
+            this.currentTab = null;
+        }
+        
+        // Update taskbar visual states
+        this.updateTaskbarStates();
+        
+        console.log(`❌ Closed tab: ${tabName}`);
+    }
+    
+    updateTaskbarStates() {
+        console.log(`🎨 Updating taskbar states...`);
+        const spineSlots = document.querySelectorAll('.spine-slot');
+        
+        spineSlots.forEach(slot => {
+            const tabName = slot.getAttribute('data-tab');
+            const isOpen = this.openTabs.has(tabName);
+            const isActive = this.isExpanded && this.currentTab === tabName;
+            const isMinimized = this.minimizedTabs.has(tabName);
+            const isFloating = this.floatingPanels.has(tabName);
+            
+            console.log(`   ${tabName}: open=${isOpen}, active=${isActive}, minimized=${isMinimized}, floating=${isFloating}`);
+            
+            // Remove all state classes
+            slot.classList.remove('active', 'open', 'minimized', 'floating');
+            
+            // Apply current states - floating takes priority
+            if (isFloating) {
+                slot.classList.add('floating'); // Panel is in floating window
+                console.log(`     -> Added 'floating' class`);
+            } else if (isActive) {
+                slot.classList.add('active'); // Currently visible panel
+                console.log(`     -> Added 'active' class`);
+            } else if (isOpen && isMinimized) {
+                slot.classList.add('open', 'minimized'); // Open but minimized
+                console.log(`     -> Added 'open minimized' classes`);
+            } else if (isOpen) {
+                slot.classList.add('open'); // Open in background
+                console.log(`     -> Added 'open' class`);
+            } else {
+                console.log(`     -> No classes added (default state)`);
+            }
+            
+            // Update tooltip to show current state
+            this.updateTabTooltip(slot, tabName, isOpen, isActive, isMinimized, isFloating);
+        });
+    }
+    
+    updateTabTooltip(slot, tabName, isOpen, isActive, isMinimized, isFloating) {
+        const config = this.panelConfigs[tabName];
+        const baseName = config ? config.name : tabName;
+        
+        let tooltip = baseName;
+        
+        if (isFloating) {
+            tooltip += ' (Floating - Click to bring to front)';
+        } else if (isActive) {
+            tooltip += ' (Active - Click to minimize)';
+        } else if (isMinimized) {
+            tooltip += ' (Minimized - Click to restore)';
+        } else if (isOpen) {
+            tooltip += ' (Open - Click to show)';
+        } else {
+            tooltip += ' (Click to open / Drag header to float)';
+        }
+        
+        slot.setAttribute('title', tooltip);
     }
     
     expand() {
@@ -326,12 +514,12 @@ class DockSystem {
         this.isExpanded = false;
         this.dock.classList.remove('expanded');
         
-        // Deactivate all spine slots and panels
-        const spineSlots = document.querySelectorAll('.spine-slot');
+        // Deactivate all panels but maintain taskbar state
         const panels = this.dock.querySelectorAll('.dock-panel');
-        
-        spineSlots.forEach(slot => slot.classList.remove('active'));
         panels.forEach(panel => panel.classList.remove('active'));
+        
+        // Update taskbar states (don't clear active, just update visual states)
+        this.updateTaskbarStates();
     }
     
     onSelectionChange(selectionData) {
@@ -574,9 +762,11 @@ class DockSystem {
     }
     
     updateLogPanel(selectedCount) {
-        // Clear existing logs when selection changes
+        // Clear existing logs when selection changes (but not if logs panel is floating)
         const logsContent = document.getElementById('logs-content');
-        if (logsContent && selectedCount === 0) {
+        const isLogsFloating = this.floatingPanels.has('logs');
+        
+        if (logsContent && selectedCount === 0 && !isLogsFloating) {
             logsContent.innerHTML = '';
         }
         
@@ -590,14 +780,391 @@ class DockSystem {
     }
     
     updateDockWidth() {
-        const panelWidths = {
-            camera: '330px',    // Fixed width
-            actions: '310px',   // Fixed width
-            logs: '450px'       // Fixed width
+        if (!this.currentTab) {
+            this.dock.style.width = '0px';
+            return;
+        }
+        
+        // Use flexible panel config system
+        const config = this.panelConfigs[this.currentTab];
+        const width = config ? config.width : '320px';
+        this.dock.style.width = width;
+    }
+    
+    // Method to add new panels dynamically
+    addPanel(panelId, config) {
+        this.panelConfigs[panelId] = {
+            name: config.name || panelId,
+            icon: config.icon || 'default',
+            width: config.width || '320px'
         };
         
-        const width = panelWidths[this.currentTab] || '320px';
-        this.dock.style.width = width;
+        console.log(`➕ Added panel config: ${panelId}`, this.panelConfigs[panelId]);
+    }
+    
+    // Get current taskbar state for debugging
+    getTaskbarState() {
+        return {
+            openTabs: Array.from(this.openTabs),
+            minimizedTabs: Array.from(this.minimizedTabs),
+            floatingPanels: Array.from(this.floatingPanels),
+            currentTab: this.currentTab,
+            isExpanded: this.isExpanded
+        };
+    }
+    
+    setupDragToUndock() {
+        // Add drag handles to all panel headers
+        const panelHeaders = document.querySelectorAll('.dock-panel .panel-header');
+        
+        panelHeaders.forEach(header => {
+            const panel = header.closest('.dock-panel');
+            const panelId = panel?.getAttribute('data-panel');
+            
+            if (!panelId) return;
+            
+            this.makePanelHeaderDraggable(header, panelId);
+        });
+    }
+    
+    makePanelHeaderDraggable(header, panelId) {
+        let dragStart = null;
+        let hasDraggedBeyondThreshold = false;
+        
+        header.addEventListener('mousedown', (e) => {
+            // Only start drag on header area, not buttons
+            if (e.target.closest('button, .btn-icon')) return;
+            
+            dragStart = { x: e.clientX, y: e.clientY };
+            hasDraggedBeyondThreshold = false;
+            
+            // Add visual feedback
+            header.style.cursor = 'grabbing';
+            
+            e.preventDefault();
+        });
+        
+        const handleMouseMove = (e) => {
+            if (!dragStart) return;
+            
+            const deltaX = e.clientX - dragStart.x;
+            const deltaY = e.clientY - dragStart.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (distance > this.dragThreshold && !hasDraggedBeyondThreshold) {
+                hasDraggedBeyondThreshold = true;
+                
+                // Show drag feedback
+                header.classList.add('dragging-to-undock');
+                document.body.classList.add('dragging-panel');
+                
+                console.log(`🏗️ Started drag-to-undock for ${panelId}`);
+            }
+            
+            if (hasDraggedBeyondThreshold) {
+                // Update drag preview position
+                this.updateDragPreview(e.clientX, e.clientY);
+            }
+        };
+        
+        const handleMouseUp = (e) => {
+            if (!dragStart) return;
+            
+            const deltaX = e.clientX - dragStart.x;
+            const deltaY = e.clientY - dragStart.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // Clean up drag state
+            dragStart = null;
+            header.style.cursor = '';
+            header.classList.remove('dragging-to-undock');
+            document.body.classList.remove('dragging-panel');
+            this.removeDragPreview();
+            
+            // If dragged beyond threshold, undock the panel
+            if (distance > this.dragThreshold) {
+                this.undockPanel(panelId, e.clientX, e.clientY);
+            }
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    updateDragPreview(x, y) {
+        // Create or update drag preview
+        let preview = document.getElementById('drag-preview');
+        if (!preview) {
+            preview = document.createElement('div');
+            preview.id = 'drag-preview';
+            preview.className = 'drag-preview';
+            preview.innerHTML = '📋 Release to create floating window';
+            document.body.appendChild(preview);
+        }
+        
+        preview.style.left = (x + 10) + 'px';
+        preview.style.top = (y - 10) + 'px';
+        preview.style.display = 'block';
+    }
+    
+    removeDragPreview() {
+        const preview = document.getElementById('drag-preview');
+        if (preview) {
+            preview.remove();
+        }
+    }
+    
+    undockPanel(panelId, x, y) {
+        // Don't undock if panel is already floating
+        if (this.floatingPanels.has(panelId)) {
+            console.log(`⚠️ Panel ${panelId} is already floating`);
+            return;
+        }
+        
+        // Check if window manager is available
+        if (!window.windowManager) {
+            console.error('WindowManager not available - cannot undock panel');
+            return;
+        }
+        
+        const config = this.panelConfigs[panelId];
+        if (!config) {
+            console.error(`No config found for panel: ${panelId}`);
+            return;
+        }
+        
+        // Create floating window
+        const floatingWindow = window.windowManager.createWindow(panelId, config);
+        
+        // Position near drag release point
+        floatingWindow.position.x = Math.max(50, x - 200);
+        floatingWindow.position.y = Math.max(50, y - 20);
+        floatingWindow.constrainPosition();
+        floatingWindow.element.style.left = floatingWindow.position.x + 'px';
+        floatingWindow.element.style.top = floatingWindow.position.y + 'px';
+        
+        // Move panel content to floating window
+        this.movePanelToWindow(panelId, floatingWindow);
+        
+        // Update tracking
+        this.floatingPanels.add(panelId);
+        this.openTabs.add(panelId); // Mark as open in floating state
+        this.minimizedTabs.delete(panelId); // Remove from minimized
+        
+        // If this was the current tab, collapse dock
+        if (this.currentTab === panelId) {
+            this.collapse();
+            this.currentTab = null;
+        }
+        
+        // Update taskbar states
+        this.updateTaskbarStates();
+        
+        console.log(`🪟 Undocked panel ${panelId} to floating window`);
+    }
+    
+    movePanelToWindow(panelId, floatingWindow) {
+        const dockPanel = document.querySelector(`[data-panel="${panelId}"]`);
+        const windowContent = floatingWindow.element.querySelector('.window-content');
+        
+        if (!dockPanel || !windowContent) {
+            console.error(`Cannot move panel ${panelId} - elements not found`);
+            return;
+        }
+        
+        // Clone the panel content structure
+        const panelContent = dockPanel.querySelector('.panel-content');
+        if (panelContent) {
+            
+            // Create a wrapper div that matches dock panel structure
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'floating-panel-content';
+            
+            // Move all content to floating window
+            while (panelContent.firstChild) {
+                contentWrapper.appendChild(panelContent.firstChild);
+            }
+            
+            windowContent.appendChild(contentWrapper);
+            
+            
+            // CRITICAL: Update JavaScript references for logs and console
+            this.updateFloatingPanelReferences(panelId, floatingWindow);
+        }
+        
+        // Hide the dock panel
+        dockPanel.style.display = 'none';
+    }
+    
+    updateFloatingPanelReferences(panelId, floatingWindow) {
+        // Update JavaScript references for panels that use getElementById
+        if (panelId === 'console') {
+            // Update app.js console content reference
+            if (window.bgcsApp && window.bgcsApp.elements) {
+                const newConsoleContent = floatingWindow.element.querySelector('#console-content');
+                
+                if (newConsoleContent) {
+                    // Clear the cached reference to force re-lookup
+                    window.bgcsApp.elements.consoleContent = null;
+                    
+                    // Set the new reference
+                    window.bgcsApp.elements.consoleContent = newConsoleContent;
+                    
+                    // Refresh console display to show existing entries
+                    setTimeout(() => {
+                        window.bgcsApp.updateConsoleDisplay();
+                    }, 100);
+                }
+            }
+        } else if (panelId === 'logs') {
+            // Force a refresh of existing logs if entities are selected
+            if (window.telemetryStubs && window.dockSystem.selectedEntities.size > 0) {
+                setTimeout(() => {
+                    // Re-render recent log entries to the floating window
+                    const recentEntries = window.telemetryStubs.logEntries.slice(0, 50);
+                    recentEntries.reverse().forEach(entry => {
+                        window.telemetryStubs.renderLogEntry(entry);
+                    });
+                }, 200);
+            }
+        }
+    }
+    
+    dockPanelFromWindow(panelId) {
+        // Called when floating window is docked back
+        if (!this.floatingPanels.has(panelId)) {
+            console.log(`⚠️ Panel ${panelId} is not floating`);
+            return;
+        }
+        
+        // Mark panel as being docked to prevent cleanup
+        this.panelsBeingDocked.add(panelId);
+        
+        // Find the floating window
+        const windows = window.windowManager?.getWindowsForPanel(panelId) || [];
+        const floatingWindow = windows[0];
+        
+        if (floatingWindow) {
+            // Move content back to dock
+            this.moveWindowContentToDock(panelId, floatingWindow);
+        }
+        
+        // Show the dock panel
+        const dockPanel = document.querySelector(`[data-panel="${panelId}"]`);
+        if (dockPanel) {
+            dockPanel.style.display = '';
+        }
+        
+        // Update tracking
+        this.floatingPanels.delete(panelId);
+        
+        // Open the panel in dock
+        this.openTab(panelId);
+        
+        // Remove from docking set after a delay (after window closing cleanup would have run)
+        setTimeout(() => {
+            this.panelsBeingDocked.delete(panelId);
+        }, 300);
+        
+        console.log(`⚓ Docked panel ${panelId} from floating window`);
+    }
+    
+    moveWindowContentToDock(panelId, floatingWindow) {
+        const windowContent = floatingWindow.element.querySelector('.window-content');
+        const dockPanel = document.querySelector(`[data-panel="${panelId}"]`);
+        
+        if (!windowContent || !dockPanel) return;
+        
+        const dockPanelContent = dockPanel.querySelector('.panel-content');
+        const floatingContent = windowContent.querySelector('.floating-panel-content');
+        
+        if (dockPanelContent && floatingContent) {
+            // Move all content back
+            while (floatingContent.firstChild) {
+                dockPanelContent.appendChild(floatingContent.firstChild);
+            }
+            
+            // CRITICAL: Restore JavaScript references for logs and console
+            this.restoreDockedPanelReferences(panelId);
+        }
+    }
+    
+    restoreDockedPanelReferences(panelId) {
+        // Restore JavaScript references when content moves back to dock
+        if (panelId === 'console') {
+            // Restore app.js console content reference
+            if (window.bgcsApp && window.bgcsApp.elements) {
+                const dockedConsoleContent = document.getElementById('console-content');
+                
+                if (dockedConsoleContent) {
+                    // Clear the cached reference first
+                    window.bgcsApp.elements.consoleContent = null;
+                    
+                    // Set the new reference
+                    window.bgcsApp.elements.consoleContent = dockedConsoleContent;
+                    
+                    // Refresh display
+                    setTimeout(() => {
+                        window.bgcsApp.updateConsoleDisplay();
+                    }, 100);
+                }
+            }
+        }
+    }
+    
+    // Check if panel is available (not floating)
+    isPanelAvailable(panelId) {
+        return !this.floatingPanels.has(panelId);
+    }
+    
+    // Restore panel content from floating window before it's destroyed
+    restorePanelContentFromFloatingWindow(panelId) {
+        // Find the floating window that's about to be closed
+        const windows = window.windowManager?.getWindowsForPanel(panelId) || [];
+        const floatingWindow = windows[0];
+        
+        const dockPanel = document.querySelector(`[data-panel="${panelId}"]`);
+        
+        if (floatingWindow && dockPanel) {
+            // Restore visibility first
+            dockPanel.style.display = '';
+            
+            // Move content back from floating window to dock
+            this.moveWindowContentToDock(panelId, floatingWindow);
+        }
+    }
+    
+    // Called when a floating window is closed (not docked back)
+    onFloatingWindowClosed(panelId) {
+        // Check if this panel is being docked - if so, skip cleanup
+        if (this.panelsBeingDocked.has(panelId)) {
+            return;
+        }
+        
+        // Remove from all tracking sets
+        this.floatingPanels.delete(panelId);
+        this.openTabs.delete(panelId);
+        this.minimizedTabs.delete(panelId);
+        
+        // If this was the current tab, clear it
+        if (this.currentTab === panelId) {
+            this.collapse();
+            this.currentTab = null;
+        }
+        
+        // CRITICAL: Restore dock panel visibility and content from floating window
+        this.restorePanelContentFromFloatingWindow(panelId);
+        
+        // Update taskbar visual states
+        this.updateTaskbarStates();
+        
+        console.log(`   After cleanup:`, {
+            floating: Array.from(this.floatingPanels),
+            open: Array.from(this.openTabs),
+            minimized: Array.from(this.minimizedTabs),
+            current: this.currentTab
+        });
+        console.log(`✅ State cleaned up for ${panelId}`);
     }
     
     connectToEntityManager() {
@@ -710,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dockSystem = new DockSystem();
 });
 
-// Debug function - can be called from console
+// Debug functions - can be called from console
 window.testDockSelection = function() {
     console.log('Testing dock selection...');
     console.log('EntityManager:', !!window.entityManager);
@@ -727,4 +1294,142 @@ window.testDockSelection = function() {
             });
         }
     }
+};
+
+// Debug taskbar system
+window.debugTaskbar = function() {
+    if (!window.dockSystem) {
+        console.error('DockSystem not initialized');
+        return;
+    }
+    
+    const state = window.dockSystem.getTaskbarState();
+    console.log('📱 Taskbar State:', state);
+    console.log('🗂️ Panel Configs:', window.dockSystem.panelConfigs);
+    
+    // Visual state check
+    const spineSlots = document.querySelectorAll('.spine-slot');
+    console.log('👁️ Visual States:');
+    spineSlots.forEach(slot => {
+        const tabName = slot.getAttribute('data-tab');
+        const classes = Array.from(slot.classList);
+        console.log(`  ${tabName}: ${classes.join(', ')}`);
+    });
+};
+
+// Quick taskbar commands
+window.openTab = (tabName) => window.dockSystem?.openTab(tabName);
+window.minimizeTab = (tabName) => window.dockSystem?.minimizeTab(tabName);
+window.restoreTab = (tabName) => window.dockSystem?.restoreTab(tabName);
+window.closeTab = (tabName) => window.dockSystem?.closeTab(tabName);
+
+// Floating window commands
+window.floatPanel = (panelId) => window.dockSystem?.undockPanel(panelId, 300, 200);
+window.dockPanel = (panelId) => window.dockSystem?.dockPanelFromWindow(panelId);
+
+// Quick demo function
+window.demoFloatingWindows = function() {
+    console.log('🎬 BGCS Floating Windows Demo');
+    console.log('1. Opening multiple panels...');
+    
+    setTimeout(() => window.openTab('camera'), 500);
+    setTimeout(() => window.floatPanel('camera'), 1000);
+    setTimeout(() => window.openTab('actions'), 1500);
+    setTimeout(() => window.floatPanel('actions'), 2000);
+    setTimeout(() => window.openTab('logs'), 2500);
+    
+    console.log('2. Demo complete! You should see floating windows.');
+    console.log('   - Drag windows by their headers');
+    console.log('   - Resize using bottom-right corner');
+    console.log('   - Click dock button to return to dock');
+};
+
+// Test state cleanup bug
+window.testStateCleanup = function() {
+    console.log('🧪 Testing state cleanup bug fix...');
+    console.log('1. Opening camera tab...');
+    window.openTab('camera');
+    
+    setTimeout(() => {
+        console.log('2. Floating camera...');
+        window.floatPanel('camera');
+    }, 500);
+    
+    setTimeout(() => {
+        console.log('3. Closing floating window (should clean up state)...');
+        const cameraWindows = window.windowManager?.getWindowsForPanel('camera') || [];
+        if (cameraWindows.length > 0) {
+            window.windowManager.closeWindow(cameraWindows[0].id);
+        }
+    }, 1500);
+    
+    setTimeout(() => {
+        console.log('4. Opening actions tab (should not show camera indicator)...');
+        window.openTab('actions');
+        debugTaskbar();
+    }, 2500);
+};
+
+// Test Phase 1 taskbar bug (tab switching cleanup)
+window.testBasicTaskbar = function() {
+    console.log('🧪 Testing basic taskbar bug (tab switching)...');
+    console.log('1. Opening camera tab...');
+    window.openTab('camera');
+    
+    setTimeout(() => {
+        console.log('2. Opening actions tab (should clean up camera)...');
+        window.openTab('actions');
+        debugTaskbar();
+    }, 1000);
+    
+    setTimeout(() => {
+        console.log('3. Opening logs tab (should clean up actions)...');
+        window.openTab('logs');
+        debugTaskbar();
+    }, 2000);
+};
+
+// Test minimize/close behavior
+window.testMinimizeBehavior = function() {
+    console.log('🧪 Testing minimize behavior...');
+    console.log('1. Opening camera tab...');
+    window.openTab('camera');
+    
+    setTimeout(() => {
+        console.log('2. Clicking camera again (should close/minimize)...');
+        window.dockSystem.switchTab('camera');
+        debugTaskbar();
+    }, 1000);
+    
+    setTimeout(() => {
+        console.log('3. Opening actions tab (camera should be completely gone)...');
+        window.openTab('actions');
+        debugTaskbar();
+    }, 2000);
+};
+
+// Test X button close bug
+window.testXButtonClose = function() {
+    console.log('🧪 Testing X button close bug...');
+    console.log('1. Opening camera in dock...');
+    window.openTab('camera');
+    
+    setTimeout(() => {
+        console.log('2. Floating camera...');
+        window.floatPanel('camera');
+    }, 500);
+    
+    setTimeout(() => {
+        console.log('3. Closing floating window with X button...');
+        const cameraWindows = window.windowManager?.getWindowsForPanel('camera') || [];
+        if (cameraWindows.length > 0) {
+            window.windowManager.closeWindow(cameraWindows[0].id);
+        }
+    }, 1500);
+    
+    setTimeout(() => {
+        console.log('4. Trying to reopen camera in dock (should work)...');
+        window.openTab('camera');
+        console.log('✅ If camera panel opened, the bug is fixed!');
+    }, 2500);
 };
