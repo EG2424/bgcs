@@ -297,8 +297,11 @@ class BGCSApp {
             this.log(`Connected to backend server (Client ID: ${clientId})`, 'success');
             this.updateConnectionStatus('online');
             
-            // Sort entity list after initial load
-            setTimeout(() => this.sortEntityList(), 500);
+            // Sort entity and group lists after initial load
+            setTimeout(() => {
+                this.sortEntityList();
+                this.sortGroupList();
+            }, 500);
         });
         
         this.websocketClient.onDisconnected(() => {
@@ -355,6 +358,25 @@ class BGCSApp {
             }
         });
         
+        // Group CRUD events
+        this.websocketClient.onMessage('group_created', (data) => {
+            if (data) {
+                this.handleGroupCreated(data);
+            }
+        });
+        
+        this.websocketClient.onMessage('group_updated', (data) => {
+            if (data) {
+                this.handleGroupUpdated(data);
+            }
+        });
+        
+        this.websocketClient.onMessage('group_deleted', (data) => {
+            if (data && data.group_id) {
+                this.handleGroupDeleted(data.group_id);
+            }
+        });
+        
         // Selection events (not used - selection is frontend-only)
         
         // Simulation control events
@@ -386,12 +408,95 @@ class BGCSApp {
             this.log('Connecting to backend server...', 'info');
             await this.websocketClient.connect();
             
+            // Load existing groups from backend
+            await this.loadGroupsFromBackend();
+            
             // Start interpolation loop for smooth entity movement
             this.startInterpolationLoop();
             
         } catch (error) {
             console.error('Failed to connect to backend:', error);
             this.log(`Connection failed: ${error.message}`, 'error');
+        }
+    }
+    
+    /**
+     * Load groups from backend
+     */
+    async loadGroupsFromBackend() {
+        try {
+            this.log('Loading groups from backend...', 'info');
+            
+            const response = await fetch('/api/groups');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            const backendGroups = result.data.groups || [];
+            
+            // Clear existing groups and reset counter
+            this.groups.clear();
+            this.groupCounter = 0;
+            
+            let loadedCount = 0;
+            for (const backendGroup of backendGroups) {
+                try {
+                    // Determine group type for UI
+                    let groupType = 'mixed';
+                    if (backendGroup.members && backendGroup.members.length > 0) {
+                        const entityTypes = new Set();
+                        backendGroup.members.forEach(entityId => {
+                            if (this.entityControls) {
+                                const entityData = this.entityControls.getEntity(entityId);
+                                if (entityData) {
+                                    entityTypes.add(entityData.type);
+                                }
+                            }
+                        });
+                        
+                        if (entityTypes.size === 1) {
+                            groupType = Array.from(entityTypes)[0] + 's'; // 'drones' or 'targets'
+                        }
+                    }
+                    
+                    // Create frontend group data structure
+                    const groupData = {
+                        id: backendGroup.id,
+                        name: backendGroup.name,
+                        type: groupType,
+                        entities: [...backendGroup.members],
+                        created: new Date(backendGroup.created_time * 1000).toISOString(),
+                        waypoints: [],
+                        mode: 'hold_position',
+                        sort_index: backendGroup.sort_index || 0
+                    };
+                    
+                    this.groups.set(backendGroup.id, groupData);
+                    this.addGroupToList(groupData);
+                    loadedCount++;
+                    
+                    // Update group counter based on loaded groups
+                    if (backendGroup.name.match(/Group (\d+)/)) {
+                        const groupNumber = parseInt(backendGroup.name.match(/Group (\d+)/)[1]);
+                        if (groupNumber > this.groupCounter) {
+                            this.groupCounter = groupNumber;
+                        }
+                    }
+                } catch (groupError) {
+                    console.warn(`Failed to load group ${backendGroup.id}:`, groupError);
+                }
+            }
+            
+            if (loadedCount > 0) {
+                this.log(`Loaded ${loadedCount} groups from backend`, 'success');
+            } else {
+                this.log('No groups found on backend', 'info');
+            }
+            
+        } catch (error) {
+            console.error('Error loading groups from backend:', error);
+            this.log(`Failed to load groups: ${error.message}`, 'warning');
         }
     }
     
@@ -1582,7 +1687,6 @@ class BGCSApp {
         
         // Store sort_index in the element for future reference
         entityItem.dataset.sortIndex = sortIndex;
-        console.log('DEBUG: Set data-sortIndex for', entityData.entity_id, '=', sortIndex);
         
         if (insertBefore) {
             entityList.insertBefore(entityItem, insertBefore);
@@ -1802,9 +1906,12 @@ class BGCSApp {
             if (successCount > 0) {
                 // Auto-create group if waypoint mode is applied to multiple entities
                 if (mode === 'waypoint_mode' && successCount >= 2) {
-                    this.autoCreateGroupForWaypoints(selectedEntities.filter((_, index) => 
-                        results[index].status === 'fulfilled'
-                    ));
+                    // Use setTimeout to avoid blocking the main flow
+                    setTimeout(async () => {
+                        await this.autoCreateGroupForWaypoints(selectedEntities.filter((_, index) => 
+                            results[index].status === 'fulfilled'
+                        ));
+                    }, 0);
                 }
                 
                 this.log(`Applied ${mode} mode to ${successCount} entities${errorCount > 0 ? ` (${errorCount} failed)` : ''}`, 'success');
@@ -1873,6 +1980,22 @@ class BGCSApp {
         
         const selectedEntities = Array.from(this.uiControls.selectedEntities);
         if (selectedEntities.length === 0) {
+            // Check if there's a group that should be deleted (when clicking on a group with no valid entities)
+            if (this.lastSelectedGroupId && this.groups.has(this.lastSelectedGroupId)) {
+                const groupData = this.groups.get(this.lastSelectedGroupId);
+                const validEntitiesCount = groupData.entities.filter(entityId => 
+                    this.renderer3D && this.renderer3D.entities.has(entityId)
+                ).length;
+                
+                if (validEntitiesCount === 0) {
+                    // Group has no valid entities, delete the group directly
+                    this.log(`Deleting empty group: ${groupData.name}`, 'info');
+                    await this.deleteGroup(this.lastSelectedGroupId);
+                    this.lastSelectedGroupId = null;
+                    return;
+                }
+            }
+            
             this.log('No entities selected to delete', 'warning');
             return;
         }
@@ -2444,54 +2567,48 @@ class BGCSApp {
     /**
      * Create a new group with specified entities
      */
-    createGroup(entityIds, groupName = null) {
+    async createGroup(entityIds, groupName = null) {
         if (!entityIds || entityIds.length === 0) {
             this.log('Cannot create group: No entities provided', 'error');
             return null;
         }
         
-        // Remove entities from their existing groups before adding to new group
-        this.removeEntitiesFromExistingGroups(entityIds);
-        
-        this.groupCounter++;
-        const groupId = `group_${this.groupCounter}`;
-        const finalGroupName = groupName || `Group ${this.groupCounter}`;
-        
-        // Get entity types for group classification
-        const entityTypes = new Set();
-        const entities = [];
-        
-        entityIds.forEach(entityId => {
-            if (this.entityControls) {
-                const entityData = this.entityControls.getEntity(entityId);
-                if (entityData) {
-                    entities.push(entityData);
-                    entityTypes.add(entityData.type);
-                }
+        try {
+            // Remove entities from their existing groups before adding to new group
+            this.removeEntitiesFromExistingGroups(entityIds);
+            
+            this.groupCounter++;
+            const finalGroupName = groupName || `Group ${this.groupCounter}`;
+            
+            // Call backend API to create group
+            const response = await fetch('/api/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: finalGroupName,
+                    members: entityIds
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
             }
-        });
-        
-        // Determine group type
-        let groupType = 'mixed';
-        if (entityTypes.size === 1) {
-            groupType = Array.from(entityTypes)[0] + 's'; // 'drones' or 'targets'
+            
+            const result = await response.json();
+            const backendGroupData = result.data;
+            
+            // Don't manually create the group here - let the WebSocket event handle it
+            // This prevents duplicates since the backend will broadcast a 'group_created' event
+            
+            this.log(`Created ${finalGroupName} with ${entityIds.length} entities`, 'success');
+            return backendGroupData.id;
+            
+        } catch (error) {
+            console.error('Error creating group:', error);
+            this.log(`Error creating group: ${error.message}`, 'error');
+            return null;
         }
-        
-        const groupData = {
-            id: groupId,
-            name: finalGroupName,
-            type: groupType,
-            entities: [...entityIds],
-            created: new Date().toISOString(),
-            waypoints: [],
-            mode: 'hold_position'
-        };
-        
-        this.groups.set(groupId, groupData);
-        this.addGroupToList(groupData);
-        
-        this.log(`Created ${finalGroupName} with ${entityIds.length} entities`, 'success');
-        return groupId;
     }
     
     /**
@@ -2547,7 +2664,38 @@ class BGCSApp {
             }
         });
         
-        groupsList.appendChild(groupItem);
+        // Insert in correct position based on sort_index
+        const sortIndex = groupData.sort_index || 0;
+        
+        const existingItems = Array.from(groupsList.querySelectorAll('.group-item'));
+        
+        // Sort existing items and find insertion point
+        let insertBefore = null;
+        for (const item of existingItems) {
+            // Try to get sort_index from the element's data attribute first
+            let itemSortIndex = parseInt(item.dataset.sortIndex) || 0;
+            
+            // If not found, try from group data
+            if (!itemSortIndex) {
+                const itemGroupData = this.groups.get(item.dataset.groupId);
+                itemSortIndex = (itemGroupData && itemGroupData.sort_index) || 0;
+            }
+            
+            if (itemSortIndex > sortIndex) {
+                insertBefore = item;
+                break;
+            }
+        }
+        
+        // Store sort_index in the element for future reference
+        groupItem.dataset.sortIndex = sortIndex;
+        
+        // Insert at the correct position
+        if (insertBefore) {
+            groupsList.insertBefore(groupItem, insertBefore);
+        } else {
+            groupsList.appendChild(groupItem);
+        }
     }
     
     /**
@@ -2709,20 +2857,35 @@ class BGCSApp {
     /**
      * Delete a group (but not the entities)
      */
-    deleteGroup(groupId) {
+    async deleteGroup(groupId) {
         const groupData = this.groups.get(groupId);
         if (!groupData) {
             this.log(`Group ${groupId} not found`, 'error');
             return;
         }
         
-        // Remove from groups map
-        this.groups.delete(groupId);
-        
-        // Remove from UI
-        this.removeGroupFromList(groupId);
-        
-        this.log(`Deleted group ${groupData.name}`, 'success');
+        try {
+            // Delete from backend first
+            const response = await fetch(`/api/groups/${groupId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // If backend deletion succeeded, remove from frontend
+            this.groups.delete(groupId);
+            this.removeGroupFromList(groupId);
+            
+            this.log(`Deleted group ${groupData.name}`, 'success');
+            
+        } catch (error) {
+            console.error('Error deleting group:', error);
+            this.log(`Error deleting group: ${error.message}`, 'error');
+        }
     }
     
     /**
@@ -2779,13 +2942,13 @@ class BGCSApp {
     /**
      * Auto-create group when waypoints are assigned to multiple selected entities
      */
-    autoCreateGroupForWaypoints(entityIds) {
+    async autoCreateGroupForWaypoints(entityIds) {
         if (entityIds.length >= 2) {
             // Check if these entities are already in a group together
             const existingGroup = this.findGroupWithEntities(entityIds);
             
             if (!existingGroup) {
-                const groupId = this.createGroup(entityIds, `Waypoint Group ${this.groupCounter}`);
+                const groupId = await this.createGroup(entityIds, `Waypoint Group ${this.groupCounter}`);
                 this.log(`Auto-created waypoint group with ${entityIds.length} entities`, 'info');
                 return groupId;
             } else {
@@ -2924,6 +3087,129 @@ class BGCSApp {
     }
     
     /**
+     * Handle group creation event from WebSocket
+     */
+    handleGroupCreated(groupData) {
+        try {
+            // Check if group already exists (avoid duplicates)
+            if (this.groups.has(groupData.id)) {
+                return;
+            }
+            
+            // Get entity types for group classification
+            let groupType = 'mixed';
+            if (groupData.members && groupData.members.length > 0) {
+                const entityTypes = new Set();
+                groupData.members.forEach(entityId => {
+                    if (this.entityControls) {
+                        const entityData = this.entityControls.getEntity(entityId);
+                        if (entityData) {
+                            entityTypes.add(entityData.type);
+                        }
+                    }
+                });
+                
+                if (entityTypes.size === 1) {
+                    groupType = Array.from(entityTypes)[0] + 's'; // 'drones' or 'targets'
+                }
+            }
+            
+            // Create frontend group data structure
+            const uiGroupData = {
+                id: groupData.id,
+                name: groupData.name,
+                type: groupType,
+                entities: [...groupData.members],
+                created: new Date(groupData.created_time * 1000).toISOString(),
+                waypoints: [],
+                mode: 'hold_position',
+                sort_index: groupData.sort_index || 0
+            };
+            
+            this.groups.set(groupData.id, uiGroupData);
+            this.addGroupToList(uiGroupData);
+            
+            this.log(`Group "${groupData.name}" was created by another client`, 'info');
+            
+        } catch (error) {
+            console.error('Error handling group created event:', error);
+        }
+    }
+    
+    /**
+     * Handle group update event from WebSocket
+     */
+    handleGroupUpdated(groupData) {
+        try {
+            const existingGroup = this.groups.get(groupData.id);
+            if (!existingGroup) {
+                // Group doesn't exist locally, create it
+                this.handleGroupCreated(groupData);
+                return;
+            }
+            
+            // Update group data
+            existingGroup.name = groupData.name;
+            existingGroup.entities = [...groupData.members];
+            
+            // Update UI
+            const groupsList = document.getElementById('groups-list');
+            if (groupsList) {
+                const groupItem = groupsList.querySelector(`[data-group-id="${groupData.id}"]`);
+                if (groupItem) {
+                    // Update group name
+                    const nameElement = groupItem.querySelector('.group-name');
+                    if (nameElement) {
+                        nameElement.textContent = groupData.name;
+                    }
+                    
+                    // Update member count
+                    const countElement = groupItem.querySelector('.group-count');
+                    if (countElement) {
+                        countElement.textContent = `${groupData.members.length} members`;
+                    }
+                }
+            }
+            
+            this.log(`Group "${groupData.name}" was updated by another client`, 'info');
+            
+        } catch (error) {
+            console.error('Error handling group updated event:', error);
+        }
+    }
+    
+    /**
+     * Handle group deletion event from WebSocket
+     */
+    handleGroupDeleted(groupId) {
+        try {
+            const group = this.groups.get(groupId);
+            if (!group) {
+                return; // Group doesn't exist locally
+            }
+            
+            const groupName = group.name;
+            
+            // Remove from frontend
+            this.groups.delete(groupId);
+            
+            // Remove from UI
+            const groupsList = document.getElementById('groups-list');
+            if (groupsList) {
+                const groupItem = groupsList.querySelector(`[data-group-id="${groupId}"]`);
+                if (groupItem) {
+                    groupItem.remove();
+                }
+            }
+            
+            this.log(`Group "${groupName}" was deleted by another client`, 'info');
+            
+        } catch (error) {
+            console.error('Error handling group deleted event:', error);
+        }
+    }
+    
+    /**
      * Sort entity list by sort_index
      */
     sortEntityList() {
@@ -2931,11 +3217,6 @@ class BGCSApp {
         if (!entityList) return;
         
         const items = Array.from(entityList.querySelectorAll('.entity-item'));
-        console.log('DEBUG: sortEntityList called, found', items.length, 'items');
-        
-        items.forEach(item => {
-            console.log('DEBUG: Item', item.dataset.entityId, 'sortIndex:', item.dataset.sortIndex);
-        });
         
         items.sort((a, b) => {
             const aIndex = parseInt(a.dataset.sortIndex) || 0;
@@ -2943,14 +3224,30 @@ class BGCSApp {
             return aIndex - bIndex;
         });
         
-        console.log('DEBUG: After sorting:');
-        items.forEach(item => {
-            console.log('DEBUG: Sorted item', item.dataset.entityId, 'sortIndex:', item.dataset.sortIndex);
+        // Re-append items in sorted order
+        items.forEach(item => entityList.appendChild(item));
+    }
+    
+    /**
+     * Sort group list by sort_index
+     */
+    sortGroupList() {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+        
+        const items = Array.from(groupsList.querySelectorAll('.group-item'));
+        if (items.length === 0) return;
+        
+        items.sort((a, b) => {
+            const aIndex = parseInt(a.dataset.sortIndex) || 0;
+            const bIndex = parseInt(b.dataset.sortIndex) || 0;
+            return aIndex - bIndex;
         });
         
         // Re-append items in sorted order
-        items.forEach(item => entityList.appendChild(item));
-        console.log('DEBUG: sortEntityList completed');
+        items.forEach((item, index) => {
+            groupsList.appendChild(item);
+        });
     }
 }
 

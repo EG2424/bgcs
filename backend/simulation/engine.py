@@ -324,6 +324,9 @@ class SimulationEngine:
         """Spawn a test scenario with drones and targets."""
         import random
         
+        # Clean up any empty groups (removes groups with no valid entity members)
+        self.state_manager.cleanup_empty_groups()
+        
         # Spawn drones in a circle around origin (closer to center)
         for i in range(num_drones):
             angle = (2 * 3.14159 * i) / num_drones

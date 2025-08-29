@@ -59,6 +59,25 @@ class ChatMessage:
         }
 
 
+@dataclass
+class EntityGroup:
+    """Represents a group of entities."""
+    id: str
+    name: str
+    members: List[str]  # List of entity IDs
+    created_time: float
+    sort_index: int = 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "members": self.members,
+            "created_time": safe_float(self.created_time),
+            "sort_index": self.sort_index
+        }
+
+
 class StateManager:
     """
     In-memory state manager for the BGCS system.
@@ -74,11 +93,13 @@ class StateManager:
     # Class variables to persist across instance recreation
     _persistent_entity_order: Dict[str, int] = {}
     _persistent_group_order: List[str] = []
+    _persistent_groups: Dict[str, EntityGroup] = {}
     
     def __init__(self, max_events: int = 1000, max_messages: int = 500):
         # Core state
         self.entities: Dict[str, Entity] = {}
         self.selected_entities: List[str] = []
+        self.groups: Dict[str, EntityGroup] = StateManager._persistent_groups
         
         # Event and message logs (circular buffers)
         self.events: deque = deque(maxlen=max_events)
@@ -319,6 +340,8 @@ class StateManager:
         return {
             "entities": {entity_id: entity.to_dict() 
                         for entity_id, entity in list(self.entities.items())},
+            "groups": {group_id: group.to_dict() 
+                      for group_id, group in self.groups.items()},
             "selected_entities": self.selected_entities.copy(),
             "simulation_running": self.simulation_running,
             "simulation_speed": safe_float(self.simulation_speed),
@@ -400,13 +423,172 @@ class StateManager:
         
         self.log_event("state_cleared")
     
+    # Group Management
+    
+    def create_group(self, group_id: str, name: str, members: List[str]) -> Optional[EntityGroup]:
+        """Create a new group."""
+        if group_id in self.groups:
+            return None
+        
+        # Validate that all members exist
+        valid_members = [member_id for member_id in members if member_id in self.entities]
+        
+        group = EntityGroup(
+            id=group_id,
+            name=name,
+            members=valid_members,
+            created_time=time.time()
+        )
+        
+        # Apply saved sort_index if it exists
+        if group_id in StateManager._persistent_groups:
+            group.sort_index = StateManager._persistent_groups[group_id].sort_index
+        
+        # Store in both instance and class variable for persistence
+        self.groups[group_id] = group
+        StateManager._persistent_groups[group_id] = group
+        
+        self.log_event("group_created", None, {
+            "group_id": group_id,
+            "group_name": name,
+            "members": valid_members,
+            "member_count": len(valid_members)
+        })
+        
+        return group
+    
+    def get_group(self, group_id: str) -> Optional[EntityGroup]:
+        """Get group by ID."""
+        return self.groups.get(group_id)
+    
+    def update_group(self, group_id: str, name: Optional[str] = None, members: Optional[List[str]] = None) -> bool:
+        """Update group properties."""
+        group = self.groups.get(group_id)
+        if not group:
+            return False
+        
+        if name is not None:
+            group.name = name
+        
+        if members is not None:
+            # Validate that all members exist
+            valid_members = [member_id for member_id in members if member_id in self.entities]
+            group.members = valid_members
+        
+        self.log_event("group_updated", None, {
+            "group_id": group_id,
+            "group_name": group.name,
+            "members": group.members,
+            "member_count": len(group.members)
+        })
+        
+        return True
+    
+    def delete_group(self, group_id: str) -> bool:
+        """Delete a group."""
+        if group_id not in self.groups:
+            return False
+        
+        group = self.groups[group_id]
+        del self.groups[group_id]
+        
+        # Remove from class variable for persistence
+        if group_id in StateManager._persistent_groups:
+            del StateManager._persistent_groups[group_id]
+        
+        # Remove from group order
+        if group_id in self.group_order:
+            self.group_order.remove(group_id)
+        
+        self.log_event("group_deleted", None, {
+            "group_id": group_id,
+            "group_name": group.name
+        })
+        
+        return True
+    
+    def get_all_groups(self) -> List[EntityGroup]:
+        """Get all groups."""
+        return list(self.groups.values())
+    
+    def add_entity_to_group(self, group_id: str, entity_id: str) -> bool:
+        """Add entity to group."""
+        group = self.groups.get(group_id)
+        if not group or entity_id not in self.entities:
+            return False
+        
+        if entity_id not in group.members:
+            group.members.append(entity_id)
+            self.log_event("entity_added_to_group", entity_id, {
+                "group_id": group_id,
+                "group_name": group.name
+            })
+        
+        return True
+    
+    def remove_entity_from_group(self, group_id: str, entity_id: str) -> bool:
+        """Remove entity from group."""
+        group = self.groups.get(group_id)
+        if not group:
+            return False
+        
+        if entity_id in group.members:
+            group.members.remove(entity_id)
+            self.log_event("entity_removed_from_group", entity_id, {
+                "group_id": group_id,
+                "group_name": group.name
+            })
+        
+        return True
+    
+    def get_entity_groups(self, entity_id: str) -> List[EntityGroup]:
+        """Get all groups that contain the specified entity."""
+        return [group for group in self.groups.values() if entity_id in group.members]
+    
+    def cleanup_empty_groups(self) -> List[str]:
+        """Remove groups with no valid members. Returns list of deleted group IDs."""
+        empty_groups = []
+        
+        for group_id, group in list(self.groups.items()):
+            # Filter out members that no longer exist
+            valid_members = [member_id for member_id in group.members if member_id in self.entities]
+            
+            if not valid_members:
+                empty_groups.append(group_id)
+                self.delete_group(group_id)
+            elif len(valid_members) < len(group.members):
+                # Update group with only valid members
+                group.members = valid_members
+        
+        return empty_groups
+    
     def set_group_order(self, ordered_ids: List[str]) -> None:
         """Set the display order for groups."""
         self.group_order = ordered_ids.copy()
+        # Update sort_index for each group (similar to entity ordering)
+        for index, group_id in enumerate(ordered_ids):
+            # Update persistent storage
+            if group_id in self._persistent_groups:
+                self._persistent_groups[group_id].sort_index = index
+            # Update current instance if it exists
+            if group_id in self.groups:
+                self.groups[group_id].sort_index = index
     
     def get_group_order(self) -> List[str]:
         """Get the current group display order."""
         return self.group_order.copy()
+    
+    def get_group_sort_index(self, group_id: str) -> int:
+        """Get the sort index for a group."""
+        if group_id in self._persistent_groups:
+            return self._persistent_groups[group_id].sort_index
+        elif group_id in self.groups:
+            return self.groups[group_id].sort_index
+        return 0
+    
+    def has_saved_group_sort_index(self, group_id: str) -> bool:
+        """Check if group has a saved sort index."""
+        return group_id in self._persistent_groups or group_id in self.groups
     
     def set_entity_order(self, ordered_ids: List[str]) -> None:
         """Set the display order for entities."""

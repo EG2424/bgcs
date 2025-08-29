@@ -47,6 +47,11 @@ class GroupRequest(BaseModel):
     name: str = Field(..., description="Group name")
     members: List[str] = Field(..., description="List of entity IDs")
 
+class GroupUpdateRequest(BaseModel):
+    """Request model for updating entity groups."""
+    name: Optional[str] = Field(None, description="New group name")
+    members: Optional[List[str]] = Field(None, description="New list of entity IDs")
+
 class OrderRequest(BaseModel):
     """Request model for reordering entities or groups."""
     ordered_ids: List[str] = Field(..., description="List of IDs in desired order")
@@ -417,7 +422,24 @@ async def clear_selection():
 
 # Group Management
 
-@router.post("/group/create", response_model=StatusResponse)
+@router.get("/groups", response_model=StatusResponse)
+async def get_groups():
+    """Get all groups."""
+    try:
+        groups = state_manager.get_all_groups()
+        groups_data = [group.to_dict() for group in groups]
+        
+        return StatusResponse(
+            success=True,
+            message=f"Retrieved {len(groups)} groups",
+            data={"groups": groups_data}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting groups: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/groups", response_model=StatusResponse)
 async def create_group(request: GroupRequest):
     """Create an entity group."""
     try:
@@ -438,30 +460,141 @@ async def create_group(request: GroupRequest):
                 detail=f"Entities not found: {missing_entities}"
             )
         
-        # For now, we'll just log the group creation
-        # (Full group management would be implemented in future chunks)
-        state_manager.log_event("group_created", None, {
-            "group_name": request.name,
-            "members": valid_entities,
-            "member_count": len(valid_entities)
-        })
+        # Generate unique group ID
+        import uuid
+        group_id = f"group_{str(uuid.uuid4())[:8]}"
         
-        await broadcast_update("group_created", {
-            "group_name": request.name,
-            "members": valid_entities,
-            "member_count": len(valid_entities)
-        })
+        # Create the group
+        group = state_manager.create_group(group_id, request.name, valid_entities)
+        if not group:
+            raise HTTPException(status_code=400, detail="Failed to create group")
+        
+        # Broadcast group creation
+        await broadcast_update("group_created", group.to_dict())
         
         return StatusResponse(
             success=True,
             message=f"Group '{request.name}' created with {len(valid_entities)} members",
-            data={"group_name": request.name, "members": valid_entities}
+            data=group.to_dict()
         )
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error creating group: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/groups/order", response_model=StatusResponse)
+async def update_group_order(request: OrderRequest):
+    """Update the display order of groups."""
+    try:
+        state_manager.set_group_order(request.ordered_ids)
+        
+        # Broadcast to clients
+        if connection_manager:
+            await connection_manager.broadcast({
+                "type": "groups_reordered",
+                "ordered_ids": request.ordered_ids
+            })
+        
+        return StatusResponse(success=True, message="Group order updated")
+        
+    except Exception as e:
+        logger.error(f"Error updating group order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update group order")
+
+@router.get("/groups/{group_id}", response_model=StatusResponse)
+async def get_group(group_id: str):
+    """Get a specific group."""
+    try:
+        group = state_manager.get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        
+        return StatusResponse(
+            success=True,
+            message=f"Retrieved group {group_id}",
+            data=group.to_dict()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting group {group_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/groups/{group_id}", response_model=StatusResponse)
+async def update_group(group_id: str, request: GroupUpdateRequest):
+    """Update a group."""
+    try:
+        group = state_manager.get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        
+        # Validate members if provided
+        if request.members is not None:
+            missing_entities = []
+            for entity_id in request.members:
+                if not state_manager.get_entity(entity_id):
+                    missing_entities.append(entity_id)
+            
+            if missing_entities:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Entities not found: {missing_entities}"
+                )
+        
+        # Update the group
+        success = state_manager.update_group(group_id, request.name, request.members)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to update group")
+        
+        # Get updated group data
+        updated_group = state_manager.get_group(group_id)
+        
+        # Broadcast group update
+        await broadcast_update("group_updated", updated_group.to_dict())
+        
+        return StatusResponse(
+            success=True,
+            message=f"Group '{updated_group.name}' updated",
+            data=updated_group.to_dict()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating group {group_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/groups/{group_id}", response_model=StatusResponse)
+async def delete_group(group_id: str):
+    """Delete a group."""
+    try:
+        group = state_manager.get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        
+        group_name = group.name
+        
+        # Delete the group
+        success = state_manager.delete_group(group_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to delete group")
+        
+        # Broadcast group deletion
+        await broadcast_update("group_deleted", {"group_id": group_id, "group_name": group_name})
+        
+        return StatusResponse(
+            success=True,
+            message=f"Group '{group_name}' deleted",
+            data={"group_id": group_id, "group_name": group_name}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting group {group_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Test and Development Endpoints
@@ -528,21 +661,56 @@ async def test_browser_connection():
     logger.info(f"DEBUG: *** BROWSER TEST ENDPOINT HIT ***")
     return {"success": True, "message": "Browser connection working", "timestamp": time.time()}
 
-@router.put("/groups/order", response_model=StatusResponse)
-async def update_group_order(request: OrderRequest):
-    """Update the display order of groups."""
+@router.post("/groups/{group_id}/members/{entity_id}", response_model=StatusResponse)
+async def add_entity_to_group(group_id: str, entity_id: str):
+    """Add entity to group."""
     try:
-        state_manager.set_group_order(request.ordered_ids)
+        success = state_manager.add_entity_to_group(group_id, entity_id)
+        if not success:
+            if not state_manager.get_group(group_id):
+                raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+            if not state_manager.get_entity(entity_id):
+                raise HTTPException(status_code=404, detail=f"Entity {entity_id} not found")
+            raise HTTPException(status_code=400, detail="Failed to add entity to group")
         
-        # Broadcast to clients
-        if connection_manager:
-            await connection_manager.broadcast({
-                "type": "groups_reordered",
-                "ordered_ids": request.ordered_ids
-            })
+        group = state_manager.get_group(group_id)
+        await broadcast_update("group_updated", group.to_dict())
         
-        return StatusResponse(success=True, message="Group order updated")
+        return StatusResponse(
+            success=True,
+            message=f"Entity {entity_id} added to group {group.name}",
+            data=group.to_dict()
+        )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error updating group order: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update group order")
+        logger.error(f"Error adding entity to group: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/groups/{group_id}/members/{entity_id}", response_model=StatusResponse)
+async def remove_entity_from_group(group_id: str, entity_id: str):
+    """Remove entity from group."""
+    try:
+        group = state_manager.get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        
+        success = state_manager.remove_entity_from_group(group_id, entity_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="Entity not in group")
+        
+        updated_group = state_manager.get_group(group_id)
+        await broadcast_update("group_updated", updated_group.to_dict())
+        
+        return StatusResponse(
+            success=True,
+            message=f"Entity {entity_id} removed from group {updated_group.name}",
+            data=updated_group.to_dict()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing entity from group: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
