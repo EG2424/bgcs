@@ -36,11 +36,11 @@ class SelectionVisuals {
         this.lastTagPositions = new Map(); // entityId -> {x, y}
         this.positionSmoothingFactor = 0.6; // Balanced smoothing
         
-        // Visual styling - Match entity colors
+        // Visual styling - Match enhanced entity colors
         this.colors = {
-            ally: 0x00ff00,      // Green to match drone color
-            hostile: 0xff4444,   // Muted red
-            neutral: 0xffaa44,   // Tactical amber
+            ally: 0x44FFAA,      // Cyan-green for beacon lines (different but complementary to drone color)
+            hostile: 0xFF4488,   // Pink-red for beacon lines (different but complementary to target color)
+            neutral: 0xFFCC44,   // Golden amber
             selected: 0xcccccc,  // Light gray outline
             hover: 0x888888      // Gray outline
         };
@@ -341,7 +341,7 @@ class SelectionVisuals {
             if (screenPos) {
                 if (this.isOnScreen(screenPos)) {
                     // Position tag to the right side of the entity at center height
-                    const rightOffset = 40; // 40px to the right
+                    const rightOffset = 70; // 70px to the right
                     const verticalOffset = 0; // Center aligned vertically
                     
                     let targetX = screenPos.x + rightOffset;

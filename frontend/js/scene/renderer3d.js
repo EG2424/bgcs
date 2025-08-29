@@ -283,7 +283,7 @@ class BGCS3DRenderer {
         // Create drone cube (sized for 1.0 scale slider = 2x original size)
         const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
         const material = new THREE.MeshBasicMaterial({
-            color: 0x00FF00, // Bright green
+            color: 0x00FF44, // Enhanced bright lime green for better visibility
             transparent: false,
             opacity: 1.0
         });
@@ -300,7 +300,7 @@ class BGCS3DRenderer {
         // Create target cube (sized for 1.0 scale slider = 2x original size)
         const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
         const material = new THREE.MeshBasicMaterial({
-            color: 0xFF0000, // Bright red
+            color: 0xFF2244, // Enhanced bright red with better saturation
             transparent: false,
             opacity: 1.0
         });
