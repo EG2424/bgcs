@@ -208,7 +208,6 @@ function initializeDragReorder(attempts = 0) {
     
     if (window.bgcsApp) {
         window.dragReorder = new DragReorder(window.bgcsApp);
-        console.log('Drag reorder system initialized');
     } else if (attempts < maxAttempts) {
         // App not ready yet, try again in 50ms
         setTimeout(() => initializeDragReorder(attempts + 1), 50);

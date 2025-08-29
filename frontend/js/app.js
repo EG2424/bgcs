@@ -1978,25 +1978,18 @@ class BGCSApp {
             return;
         }
         
+        // Check if there's a selected group first (prioritize group deletion over entity deletion)
+        if (this.lastSelectedGroupId && this.groups.has(this.lastSelectedGroupId)) {
+            const groupData = this.groups.get(this.lastSelectedGroupId);
+            this.log(`Deleting group: ${groupData.name}`, 'info');
+            await this.deleteGroup(this.lastSelectedGroupId);
+            this.lastSelectedGroupId = null;
+            return;
+        }
+        
         const selectedEntities = Array.from(this.uiControls.selectedEntities);
         if (selectedEntities.length === 0) {
-            // Check if there's a group that should be deleted (when clicking on a group with no valid entities)
-            if (this.lastSelectedGroupId && this.groups.has(this.lastSelectedGroupId)) {
-                const groupData = this.groups.get(this.lastSelectedGroupId);
-                const validEntitiesCount = groupData.entities.filter(entityId => 
-                    this.renderer3D && this.renderer3D.entities.has(entityId)
-                ).length;
-                
-                if (validEntitiesCount === 0) {
-                    // Group has no valid entities, delete the group directly
-                    this.log(`Deleting empty group: ${groupData.name}`, 'info');
-                    await this.deleteGroup(this.lastSelectedGroupId);
-                    this.lastSelectedGroupId = null;
-                    return;
-                }
-            }
-            
-            this.log('No entities selected to delete', 'warning');
+            this.log('No entities or groups selected to delete', 'warning');
             return;
         }
         
