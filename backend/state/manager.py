@@ -6,6 +6,8 @@ Manages entities, events, chat messages, and selected entities.
 import time
 import uuid
 import math
+import json
+import os
 from typing import Dict, List, Optional, Any, Type
 from collections import deque
 from dataclasses import dataclass
@@ -69,6 +71,10 @@ class StateManager:
     - Terrain Grid: 2D grid system for movement and collision checks
     """
     
+    # Class variables to persist across instance recreation
+    _persistent_entity_order: Dict[str, int] = {}
+    _persistent_group_order: List[str] = []
+    
     def __init__(self, max_events: int = 1000, max_messages: int = 500):
         # Core state
         self.entities: Dict[str, Entity] = {}
@@ -100,6 +106,11 @@ class StateManager:
         self.terrain_height: int = 1000  # meters
         self.terrain_resolution: float = 10.0  # meters per grid cell
         
+        # Display ordering (use class variables for persistence)
+        self.entity_order = StateManager._persistent_entity_order
+        self.group_order = StateManager._persistent_group_order
+        
+        
         # Statistics
         self.stats = {
             "entities_created": 0,
@@ -114,6 +125,10 @@ class StateManager:
         """Add entity to the state."""
         if entity.id in self.entities:
             return False
+        
+        # Apply saved sort_index if it exists
+        if entity.id in self.entity_order:
+            entity.sort_index = self.entity_order[entity.id]
         
         self.entities[entity.id] = entity
         self.stats["entities_created"] += 1
@@ -384,6 +399,37 @@ class StateManager:
         }
         
         self.log_event("state_cleared")
+    
+    def set_group_order(self, ordered_ids: List[str]) -> None:
+        """Set the display order for groups."""
+        self.group_order = ordered_ids.copy()
+    
+    def get_group_order(self) -> List[str]:
+        """Get the current group display order."""
+        return self.group_order.copy()
+    
+    def set_entity_order(self, ordered_ids: List[str]) -> None:
+        """Set the display order for entities."""
+        for index, entity_id in enumerate(ordered_ids):
+            # Update class variable (persists across instance recreation)
+            StateManager._persistent_entity_order[entity_id] = index
+            # Also update instance reference
+            self.entity_order[entity_id] = index
+            # Update the actual entity if it exists
+            entity = self.get_entity(entity_id)
+            if entity:
+                entity.sort_index = index
+        
+    
+    def get_entity_sort_index(self, entity_id: str) -> int:
+        """Get the sort index for an entity."""
+        return self.entity_order.get(entity_id, 0)
+    
+    def has_saved_sort_index(self, entity_id: str) -> bool:
+        """Check if entity has a saved sort index."""
+        return entity_id in self.entity_order
+    
+    
 
 
 # Global state manager instance

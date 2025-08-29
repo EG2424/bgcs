@@ -159,6 +159,9 @@ class BGCSEntityStateManager {
             waypoints: (entityData.waypoints || []).map(wp => this.createVector3(wp)),
             currentMode: entityData.current_mode || 'idle',
             
+            // Display ordering
+            sort_index: entityData.sort_index || 0,
+            
             // Entity-specific properties
             ...this.getEntitySpecificProperties(entityData),
             
@@ -224,6 +227,9 @@ class BGCSEntityStateManager {
         if (entityData.waypoints) {
             entity.waypoints = entityData.waypoints.map(wp => this.createVector3(wp));
         }
+        
+        // Update display ordering
+        entity.sort_index = entityData.sort_index ?? entity.sort_index;
         
         // Update entity-specific properties
         Object.assign(entity, this.getEntitySpecificProperties(entityData));

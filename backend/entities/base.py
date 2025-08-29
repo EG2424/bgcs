@@ -79,6 +79,9 @@ class Entity:
         self.waypoints: List[Vector3] = []  # Waypoint queue
         self.current_mode: str = "idle"  # Current behavior mode
         
+        # Display ordering
+        self.sort_index: int = 0  # For UI ordering
+        
         # Timestamps
         self.created_time: float = time.time()
         self.last_update_time: float = time.time()
@@ -140,6 +143,12 @@ class Entity:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert entity to dictionary for serialization."""
+        # Get the latest sort_index from state manager if available
+        from ..state.manager import state_manager
+        if state_manager.has_saved_sort_index(self.id):
+            current_sort_index = state_manager.get_entity_sort_index(self.id)
+            self.sort_index = current_sort_index
+            
         return {
             "id": self.id,
             "entity_type": self.entity_type,
@@ -156,6 +165,7 @@ class Entity:
             "target_position": {"x": safe_float(self.target_position.x), "y": safe_float(self.target_position.y), "z": safe_float(self.target_position.z)},
             "waypoints": [{"x": safe_float(wp.x), "y": safe_float(wp.y), "z": safe_float(wp.z)} for wp in self.waypoints],
             "current_mode": self.current_mode,
+            "sort_index": self.sort_index,
             "created_time": self.created_time,
             "last_update_time": self.last_update_time
         }
@@ -185,6 +195,7 @@ class Entity:
         else:
             entity.target_position = Vector3(**target_pos_data)
         entity.current_mode = data.get("current_mode", "idle")
+        entity.sort_index = data.get("sort_index", 0)
         entity.created_time = data.get("created_time", time.time())
         entity.last_update_time = data.get("last_update_time", time.time())
         

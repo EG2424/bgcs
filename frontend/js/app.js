@@ -296,6 +296,9 @@ class BGCSApp {
             this.isConnected = true;
             this.log(`Connected to backend server (Client ID: ${clientId})`, 'success');
             this.updateConnectionStatus('online');
+            
+            // Sort entity list after initial load
+            setTimeout(() => this.sortEntityList(), 500);
         });
         
         this.websocketClient.onDisconnected(() => {
@@ -337,6 +340,19 @@ class BGCSApp {
         
         this.websocketClient.onMessage('entity_path_changed', (data) => {
             this.log(`Entity "${data.entity_id}" path updated (${data.waypoints_added} waypoints)`, 'info');
+        });
+        
+        // Order update messages
+        this.websocketClient.onMessage('assets_reordered', (data) => {
+            if (data && data.ordered_ids) {
+                this.applyAssetOrder(data.ordered_ids);
+            }
+        });
+        
+        this.websocketClient.onMessage('groups_reordered', (data) => {
+            if (data && data.ordered_ids) {
+                this.applyGroupOrder(data.ordered_ids);
+            }
         });
         
         // Selection events (not used - selection is frontend-only)
@@ -422,7 +438,8 @@ class BGCSApp {
         this.addEntityToList({
             entity_id: entity.id,
             type: entity.type,
-            mode: entity.currentMode || 'idle'
+            mode: entity.currentMode || 'idle',
+            sort_index: entity.sort_index || 0
         });
         
         // Update tab cycle list
@@ -1541,8 +1558,37 @@ class BGCSApp {
             }
         });
         
-        // Add to list
-        entityList.appendChild(entityItem);
+        // Insert in correct position based on sort_index
+        const sortIndex = entityData.sort_index || 0;
+        const existingItems = Array.from(entityList.querySelectorAll('.entity-item'));
+        
+        // Sort existing items and find insertion point
+        let insertBefore = null;
+        for (const item of existingItems) {
+            // Try to get sort_index from the element's data attribute first
+            let itemSortIndex = parseInt(item.dataset.sortIndex) || 0;
+            
+            // If not found, try from entity state manager
+            if (!itemSortIndex) {
+                const itemData = this.entityStateManager.getEntity(item.dataset.entityId);
+                itemSortIndex = (itemData && itemData.sort_index) || 0;
+            }
+            
+            if (itemSortIndex > sortIndex) {
+                insertBefore = item;
+                break;
+            }
+        }
+        
+        // Store sort_index in the element for future reference
+        entityItem.dataset.sortIndex = sortIndex;
+        console.log('DEBUG: Set data-sortIndex for', entityData.entity_id, '=', sortIndex);
+        
+        if (insertBefore) {
+            entityList.insertBefore(entityItem, insertBefore);
+        } else {
+            entityList.appendChild(entityItem);
+        }
         
         // Update entity counter
         this.updateEntityCounter();
@@ -2843,6 +2889,68 @@ class BGCSApp {
         
         // Add to document body since using fixed positioning
         document.body.appendChild(lockIndicator);
+    }
+    
+    /**
+     * Apply asset order from server
+     */
+    applyAssetOrder(orderedIds) {
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        orderedIds.forEach((entityId, index) => {
+            const item = entityList.querySelector(`[data-entity-id="${entityId}"]`);
+            if (item) {
+                item.dataset.sortIndex = index;
+                entityList.appendChild(item);
+            }
+        });
+    }
+    
+    /**
+     * Apply group order from server
+     */
+    applyGroupOrder(orderedIds) {
+        const groupsList = document.getElementById('groups-list');
+        if (!groupsList) return;
+        
+        orderedIds.forEach((groupId, index) => {
+            const item = groupsList.querySelector(`[data-group-id="${groupId}"]`);
+            if (item) {
+                item.dataset.sortIndex = index;
+                groupsList.appendChild(item);
+            }
+        });
+    }
+    
+    /**
+     * Sort entity list by sort_index
+     */
+    sortEntityList() {
+        const entityList = this.elements.entityList;
+        if (!entityList) return;
+        
+        const items = Array.from(entityList.querySelectorAll('.entity-item'));
+        console.log('DEBUG: sortEntityList called, found', items.length, 'items');
+        
+        items.forEach(item => {
+            console.log('DEBUG: Item', item.dataset.entityId, 'sortIndex:', item.dataset.sortIndex);
+        });
+        
+        items.sort((a, b) => {
+            const aIndex = parseInt(a.dataset.sortIndex) || 0;
+            const bIndex = parseInt(b.dataset.sortIndex) || 0;
+            return aIndex - bIndex;
+        });
+        
+        console.log('DEBUG: After sorting:');
+        items.forEach(item => {
+            console.log('DEBUG: Sorted item', item.dataset.entityId, 'sortIndex:', item.dataset.sortIndex);
+        });
+        
+        // Re-append items in sorted order
+        items.forEach(item => entityList.appendChild(item));
+        console.log('DEBUG: sortEntityList completed');
     }
 }
 

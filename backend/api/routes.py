@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import logging
+import time
 
 from ..entities.base import Vector3
 from ..state.manager import state_manager
@@ -45,6 +46,10 @@ class GroupRequest(BaseModel):
     """Request model for creating entity groups."""
     name: str = Field(..., description="Group name")
     members: List[str] = Field(..., description="List of entity IDs")
+
+class OrderRequest(BaseModel):
+    """Request model for reordering entities or groups."""
+    ordered_ids: List[str] = Field(..., description="List of IDs in desired order")
 
 class StatusResponse(BaseModel):
     """Response model for status information."""
@@ -182,7 +187,8 @@ async def list_entities():
                     "health": entity.health,
                     "detected": entity.detected,
                     "selected": entity.selected,
-                    "current_mode": getattr(entity, 'current_mode', 'unknown')
+                    "current_mode": getattr(entity, 'current_mode', 'unknown'),
+                    "sort_index": entity.sort_index
                 }
             ))
         
@@ -495,3 +501,48 @@ async def get_recent_events(count: int = 20):
     except Exception as e:
         logger.error(f"Error getting events: {e}")
         raise HTTPException(status_code=500, detail="Failed to get events")
+
+@router.put("/assets/order", response_model=StatusResponse)
+async def update_asset_order(request: OrderRequest):
+    """Update the display order of assets (entities)."""
+    try:
+        # Save the order in state manager (persists across test scenario respawns)
+        state_manager.set_entity_order(request.ordered_ids)
+        
+        # Broadcast to clients
+        if connection_manager:
+            await connection_manager.broadcast({
+                "type": "assets_reordered",
+                "ordered_ids": request.ordered_ids
+            })
+        
+        return StatusResponse(success=True, message="Asset order updated")
+        
+    except Exception as e:
+        logger.error(f"Error updating asset order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update asset order")
+
+@router.get("/test-browser")
+async def test_browser_connection():
+    """Simple test endpoint to verify browser-to-server connection."""
+    logger.info(f"DEBUG: *** BROWSER TEST ENDPOINT HIT ***")
+    return {"success": True, "message": "Browser connection working", "timestamp": time.time()}
+
+@router.put("/groups/order", response_model=StatusResponse)
+async def update_group_order(request: OrderRequest):
+    """Update the display order of groups."""
+    try:
+        state_manager.set_group_order(request.ordered_ids)
+        
+        # Broadcast to clients
+        if connection_manager:
+            await connection_manager.broadcast({
+                "type": "groups_reordered",
+                "ordered_ids": request.ordered_ids
+            })
+        
+        return StatusResponse(success=True, message="Group order updated")
+        
+    except Exception as e:
+        logger.error(f"Error updating group order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update group order")
