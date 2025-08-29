@@ -801,6 +801,12 @@ class BGCSUIControls {
             }
         });
         
+        // Also clear all selection visuals directly to ensure off-screen pointers are removed
+        const selectionVisuals = this.renderer3D.getSelectionVisuals();
+        if (selectionVisuals) {
+            selectionVisuals.clearAll();
+        }
+        
         this.selectedEntities.clear();
         this.updateSelectionUI();
         

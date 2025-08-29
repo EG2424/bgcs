@@ -182,6 +182,13 @@ class SelectionVisuals {
             this.selectedVisuals.delete(entityId);
         }
         
+        // Clean up off-screen pointer specifically
+        const offScreenPointer = this.offScreenPointers.get(entityId);
+        if (offScreenPointer) {
+            this.hudOverlay.removeChild(offScreenPointer);
+            this.offScreenPointers.delete(entityId);
+        }
+        
         // Clean up stored position data
         this.lastTagPositions.delete(entityId);
         
@@ -625,6 +632,13 @@ class SelectionVisuals {
         
         [...this.hoveredVisuals.keys()].forEach(entityId => {
             this.removeHover(entityId);
+        });
+        
+        // Clean up any remaining off-screen pointers from DOM
+        this.offScreenPointers.forEach((pointer, entityId) => {
+            if (pointer && pointer.parentElement) {
+                pointer.parentElement.removeChild(pointer);
+            }
         });
         
         // Clear all maps completely
