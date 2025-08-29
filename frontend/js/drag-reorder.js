@@ -203,10 +203,21 @@ class DragReorder {
 }
 
 // Initialize when app is ready
+function initializeDragReorder(attempts = 0) {
+    const maxAttempts = 100; // 5 seconds max (50ms * 100)
+    
+    if (window.bgcsApp) {
+        window.dragReorder = new DragReorder(window.bgcsApp);
+        console.log('Drag reorder system initialized');
+    } else if (attempts < maxAttempts) {
+        // App not ready yet, try again in 50ms
+        setTimeout(() => initializeDragReorder(attempts + 1), 50);
+    } else {
+        console.error('Failed to initialize drag reorder system: app not found after 5 seconds');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (window.bgcsApp) {
-            window.dragReorder = new DragReorder(window.bgcsApp);
-        }
-    }, 100);
+    // Start checking for app initialization
+    initializeDragReorder();
 });
