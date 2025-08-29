@@ -27,14 +27,14 @@ class SelectionVisuals {
         this.offScreenPointers = new Map(); // entityId -> pointer element
         
         // Performance settings
-        this.maxDistance = 600; // Far LOD threshold
+        this.maxDistance = 1000; // Far LOD threshold (increased for better visibility)
         this.nearDistance = 100; // Near LOD threshold
-        this.updateInterval = 50; // ~20fps updates (even slower for ultra smooth)
+        this.updateInterval = 16; // 60fps updates for responsiveness
         this.lastUpdate = 0;
         
         // Position smoothing for jitter reduction
         this.lastTagPositions = new Map(); // entityId -> {x, y}
-        this.positionSmoothingFactor = 0.85; // Much higher = ultra smooth movement
+        this.positionSmoothingFactor = 0.6; // Balanced smoothing
         
         // Visual styling - Match entity colors
         this.colors = {
@@ -304,15 +304,8 @@ class SelectionVisuals {
         const entity = window.bgcsEntityStateManager?.getEntity(entityId);
         const altitude = Math.round(mesh.position.y);
         
-        // Content based on distance LOD
-        let content;
-        if (distance < this.nearDistance) {
-            content = `${entityId} | ALT ${altitude}m`;
-        } else if (distance < this.maxDistance) {
-            content = entityId;
-        } else {
-            content = ''; // Hidden at far distances
-        }
+        // Always show entity ID and altitude when selected
+        let content = `${entityId} | ALT ${altitude}m`;
         
         hudElement.innerHTML = content;
         hudElement.dataset.entityId = entityId; // Store entity ID for cleanup
@@ -354,11 +347,23 @@ class SelectionVisuals {
                     let targetX = screenPos.x + rightOffset;
                     let targetY = screenPos.y + verticalOffset;
                     
-                    // Apply position smoothing to reduce jitter
+                    // Apply distance-adaptive smoothing
                     const lastPos = this.lastTagPositions.get(entityId);
                     if (lastPos) {
-                        targetX = lastPos.x + (targetX - lastPos.x) * this.positionSmoothingFactor;
-                        targetY = lastPos.y + (targetY - lastPos.y) * this.positionSmoothingFactor;
+                        // Calculate distance from camera to entity
+                        const distance = this.camera.position.distanceTo(mesh.position);
+                        // Simple distance-based smoothing
+                        let adaptiveSmoothingFactor = this.positionSmoothingFactor;
+                        if (distance > this.nearDistance * 2) {
+                            // High smoothing for far distances (simple approach)
+                            adaptiveSmoothingFactor = 0.8;
+                        } else if (distance > this.nearDistance) {
+                            // Medium smoothing for medium distances
+                            adaptiveSmoothingFactor = 0.7;
+                        }
+                        
+                        targetX = lastPos.x + (targetX - lastPos.x) * adaptiveSmoothingFactor;
+                        targetY = lastPos.y + (targetY - lastPos.y) * adaptiveSmoothingFactor;
                     }
                     
                     // Store the smoothed position
@@ -488,17 +493,10 @@ class SelectionVisuals {
             }
         }
         
-        // Update HUD tag content based on distance
+        // Update HUD tag content - always show full info when selected
         if (visuals.hudTag) {
             const altitude = Math.round(mesh.position.y);
-            let content;
-            if (distance < this.nearDistance) {
-                content = `${entityId} | ALT ${altitude}m`;
-            } else if (distance < this.maxDistance) {
-                content = entityId;
-            } else {
-                content = '';
-            }
+            let content = `${entityId} | ALT ${altitude}m`;
             visuals.hudTag.innerHTML = content;
         }
     }
